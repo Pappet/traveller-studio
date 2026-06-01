@@ -336,9 +336,10 @@ def erzeuge_welt(seed: str, hexcode: str, *, zugehoerigkeit: str | None = "Im") 
     # --- Reisezone ---------------------------------------------------------
     # Rot: insidiöse Atmosphäre (C = 12+) – Schutzanzüge versagen langfristig
     rot = (atmo >= 12)
-    # Amber: korrosive/exotische Atm, anarchische/balkanisierte/charismatische Reg,
-    #        extremes Gesetz (9+) – Gesetz 0 ist KEIN Amber-Grund (nur gesetzlos)
-    amber = not rot and ((atmo >= 10) or (reg in (0, 7, 10)) or (gesetz >= 9))
+    # Amber: exotische/korrosive Atm (A-B), Balkanisierung (Reg 7), extremes Gesetz (C+ = 12+)
+    # Reg 0 (Anarchie) und Reg 10 (Charismatischer Diktator) sind kein kanonischer Amber-Grund;
+    # Gesetz 9-11 ist restriktiv aber nicht reisegefährlich.
+    amber = not rot and ((atmo >= 10) or (reg == 7) or (gesetz >= 12))
     reisezone = "rot" if rot else ("amber" if amber else "gruen")
 
     # --- UWP-String ----------------------------------------------------
