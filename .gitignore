@@ -27,3 +27,6 @@ Thumbs.db
 subsektor_A.svg
 subsektor_A.html
 subsektor_A_interaktiv.html
+
+# Claude Code internal
+.claude/
