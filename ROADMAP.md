@@ -36,26 +36,27 @@ Diese Entscheidungen sind das Fundament — neue Features sollen sie respektiere
   (`handelscodes`, `basen`, `raumhafen_details`, `kultur`, `sternendaten`).
 
 ### Generatoren
-- **Sektor/Welt** (`sektor_generator.py`): vollständige UWP nach MgT2-Regeln,
+- **Sektor/Welt** (`app/generators/sektor.py`): vollständige UWP nach MgT2-Regeln,
   gegen das 13Mann-Buch abgeglichen. Temperatur (inkl. Hydro-WM), alle 6
   Basentypen, Gasriese, Reisezone, Raumhafen-Details (Treibstoff, Anlegekosten,
   Werft), kulturelle Eigenheit (W66).
-- **Fraktionen** (`faktionen.py`): 1W3 pro bewohnter Welt, Mini-Regierung,
+- **Fraktionen** (`app/generators/faktionen.py`): 1W3 pro bewohnter Welt, Mini-Regierung,
   Stärke, Einstufung Splittergruppe/Opposition.
-- **Routen** (`routes.py`): getestete Hexdistanz + Heuristik für
+- **Routen** (`app/generators/routen.py`): getestete Hexdistanz + Heuristik für
   Kommunikations- und Handelsrouten.
 
 ### Darstellung
-- **Hexkarte** (`hexmap.py`): SVG, korrekter Subsektor-Versatz, Routen-Layer,
+- **Hexkarte** (`app/rendering/hexmap.py`): SVG, korrekter Subsektor-Versatz, Routen-Layer,
   Basen/Gasriese/Zonen, SPECTRUM-getönt.
-- **Detailkarte** (`detailkarte.py`): anklickbare Hexe → bodenverankerte
+- **Detailkarte** (`app/templates/sektor/subsektor.html`): anklickbare Hexe → bodenverankerte
   Overlay-Card mit dekodierter UWP, Temperatur, Raumhafen-Details, Kultur,
   Handelscodes und den verknüpften NSCs/Aufträgen/Fraktionen.
 
-### App (`app.py`, `db.py`, `persist.py`)
-- Flask + SQLite. Übersicht, Sektor generieren, Subsektor-Ansicht aus DB,
+### App (`app/__init__.py`, `app/blueprints/`, `app/db.py`, `app/persist.py`)
+- Flask + SQLite, als `app/`-Package mit `create_app()`-Factory und Blueprints
+  (`main`, `sektor`). Übersicht, Sektor generieren, Subsektor-Ansicht aus DB,
   A–P-Navigation, UWP-Export, Sektor löschen.
-- `persist.py` schreibt Generator-Output in die Tabellen und hydriert beim
+- `app/persist.py` schreibt Generator-Output in die Tabellen und hydriert beim
   Laden die JSON-Spalten zurück.
 
 ---
@@ -67,18 +68,18 @@ Diese Entscheidungen sind das Fundament — neue Features sollen sie respektiere
 stehen — es fehlt nur das Anlegen. Das ist der kürzeste Weg, den Prep↔Tisch-
 Kreis wirklich zu schließen.
 
-- **Generator** (`nsc_generator.py`, neu): schneller NSC (Eigenschaften 2W6,
+- **Generator** (`app/generators/nsc.py`, neu): schneller NSC (Eigenschaften 2W6,
   Skill-Paket nach Rolle) und/oder voller Lifepath. Seedbar, mit `wuerfe`.
 - **Speichern**: `persist.speichere_nsc()`; nutzt vorhandene `nsc`-Tabelle.
 - **Verknüpfen**: NSC ↔ Welt (FK), NSC ↔ Fraktion über `nsc_fraktion`
   inkl. `geheim`-Checkbox → erscheint als rotes Badge in der Card.
 - **UI**: Routen `GET/POST /welt/<id>/nsc/neu`, `GET/POST /nsc/<id>`
   (Bearbeiten, inkl. dem Freitext-`notizen`-Feld, das am Tisch wächst).
-  Neues Template `nsc_form.html`.
-- **Card-Hook**: in `detailkarte.py` einen „+ NSC“-Knoten im NSCs-Abschnitt.
+  Neues Template `app/templates/nsc_form.html`.
+- **Card-Hook**: in `app/templates/sektor/subsektor.html` einen „+ NSC“-Knoten im NSCs-Abschnitt.
 
 ### 2. Auftrags-/Patron-Generator
-- **Generator** (`auftrag_generator.py`, neu): die 6×6-Patron-Tabellen
+- **Generator** (`app/generators/auftrag.py`, neu): die 6×6-Patron-Tabellen
   (Auftraggeber, Ziel, Komplikation, Wendung, Belohnung).
 - **Speichern**: `auftrag`-Tabelle steht schon; `patron_nsc_id`, `welt_id`,
   `fraktion_id` als FKs setzen → Auftrag wird zum Knoten, der NSC/Welt/Fraktion
@@ -136,20 +137,18 @@ Kreis wirklich zu schließen.
 
 ## Technische Schuld / Aufräumen
 
-- **Doppelte SPECTRUM-Tokens**: einmal in `static/spectrum.css` (Übersicht),
-  einmal inline in `detailkarte.py` (Subsektor-Ansicht). Sollte in *eine*
-  CSS-Datei zusammengeführt werden, sobald die Subsektor-Ansicht ein echtes
-  Jinja-Template wird (statt einem großen Python-String).
-- **Subsektor-Ansicht → Jinja-Template**: `detailkarte.render_app` baut HTML als
-  String. Für Wartbarkeit perspektivisch in `templates/subsektor.html` + ein
-  schlankes SVG-Fragment überführen.
+- ~~**Doppelte SPECTRUM-Tokens**~~ *(erledigt)*: in eine `app/static/spectrum.css`
+  zusammengeführt; die Subsektor-Ansicht ist jetzt ein echtes Jinja-Template.
+- ~~**Subsektor-Ansicht → Jinja-Template**~~ *(erledigt)*: jetzt
+  `app/templates/sektor/subsektor.html` + SVG-Fragment statt Python-String.
 - **Routen subsektorübergreifend**: aktuell nur innerhalb eines Subsektors
   gezeichnet. Grenzüberschreitende Routen brauchen Rendering über
   Subsektor-Kanten hinweg (oder eine Sektor-Gesamtansicht).
 - **Handelscodes**: intern kanonisch (englisch), Anzeige deutsch. Falls strikt
-  Buch-Codes gewünscht — Mapping `CODE_DE` in `sektor_generator.py` umlegen.
-- **Tests**: bisher nur die Hexdistanz hat einen Selbsttest. Generatoren
-  könnten Smoke-Tests (Verteilungen plausibel, JSON serialisierbar) gebrauchen.
+  Buch-Codes gewünscht — Mapping `CODE_DE` in `app/generators/sektor.py` umlegen.
+- **Tests**: Smoke-Tests für die Kern-Routen vorhanden (`tests/`, via
+  `TestingConfig`). Die Generatoren könnten zusätzlich eigene Smoke-Tests
+  (Verteilungen plausibel, JSON serialisierbar) gebrauchen.
 
 ---
 

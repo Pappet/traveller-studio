@@ -7,7 +7,7 @@ Verbindet die (reinen, seedbaren) Generatoren mit der Datenbank:
                            Welten, Fraktionen und Routen in die Tabellen.
   * lade_*()            -- liest die gespeicherten Daten zurueck und
                            HYDRIERT die JSON-Spalten (Strings -> Python),
-                           damit die Renderer (hexmap/detailkarte) sie direkt
+                           damit die Renderer (hexmap/Templates) sie direkt
                            verwenden koennen.
 
 Die Renderer lesen Welt-Objekte ODER dicts; hier liefern wir dicts.

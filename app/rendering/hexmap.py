@@ -2,7 +2,7 @@
 Traveller Hexkarte  ·  SVG-Renderer im SPECTRUM-Look
 ====================================================
 
-Baut aus den Welt-Objekten (aus sektor_generator.py) oder aus plain dicts
+Baut aus den Welt-Objekten (aus generators/sektor.py) oder aus plain dicts
 (aus welt_zu_row) eine Subsektor-Hexkarte als SVG.
 
 Geometrie: flache-Oberkante-Hexe in senkrechten Spalten; gerade Spalten
@@ -22,11 +22,6 @@ Reine Standardbibliothek.
 
 from __future__ import annotations
 from math import cos, sin, radians
-
-try:
-    from ..generators.sektor import erzeuge_subsektor, Welt
-except Exception:
-    Welt = None
 
 # --- SPECTRUM Tokens -------------------------------------------------
 C = {
