@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Sektoren · Traveller Studio{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <section class="panel">
+    <div class="sec-label">Neuen Sektor generieren</div>
+    <form method="post" action="{{ url_for('sektor.sektor_generieren') }}" class="genform">
+      <label>Name
+        <input name="name" placeholder="z. B. Reft-Marken" required autofocus>
+      </label>
+      <label>Seed
+        <input name="seed" placeholder="leer = zufällig">
+      </label>
+      <label>Dichte
+        <select name="dichte">
+          <option value="normal">Normal (50 %)</option>
+          <option value="dicht">Dicht (+1)</option>
+          <option value="duenn">Dünn (−1)</option>
+          <option value="rift">Rift (−2)</option>
+        </select>
+      </label>
+      <button class="btn btn--primary" type="submit">GENERIEREN</button>
+    </form>
+  </section>
+
+  <div class="sec-label">Sektoren</div>
+  {% if sektoren %}
+  <div class="cards">
+    {% for s in sektoren %}
+    <div class="card">
+      <a class="card__link" href="{{ url_for('sektor.subsektor_ansicht', sektor_id=s.id, ss_index=0) }}">
+        <div class="card__name">{{ s.name }}</div>
+        <div class="card__meta">{{ s.welten }} Welten&nbsp;&nbsp;·&nbsp;&nbsp;{{ s.fraktionen }} Fraktionen</div>
+        <div class="card__seed">SEED // {{ s.seed }}</div>
+      </a>
+      <form method="post" action="{{ url_for('sektor.sektor_loeschen', sektor_id=s.id) }}"
+            onsubmit="return confirm('Sektor „{{ s.name }}" wirklich löschen?');">
+        <button class="btn btn--ghost btn--sm" type="submit">LÖSCHEN</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine Sektoren — generiere oben deinen ersten</div>
+  {% endif %}
+</div>
+{% endblock %}

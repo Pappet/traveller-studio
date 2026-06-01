@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ sektor_name }} · Subsektor {{ letter }}{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ home_url }}">ÜBERSICHT</a>
+<a class="btn btn--primary" href="{{ export_url }}">UWP-EXPORT</a>
+{% endblock %}
+
+{% block subheader %}
+<div class="section-strip">
+  <span class="slot slot--left">SEKTOR // {{ sektor_name }}</span>
+  <span class="slot slot--center"><span class="pulse"></span><b>SUBSEKTOR {{ letter }}</b></span>
+  <span class="slot slot--right">{{ n }} WELTEN&nbsp;&nbsp;{{ n_amber }} AMBER&nbsp;&nbsp;{{ n_rot }} ROT</span>
+</div>
+<nav class="subnav" aria-label="Subsektor-Navigation">
+  {% for i in range(16) %}
+    {% set pill_letter = 'ABCDEFGHIJKLMNOP'[i] %}
+    {% if i == ss_index %}
+      <a class="nav-pill on" href="{{ url_for('sektor.subsektor_ansicht', sektor_id=sektor_id, ss_index=i) }}">{{ pill_letter }}</a>
+    {% elif i in vorhanden %}
+      <a class="nav-pill" href="{{ url_for('sektor.subsektor_ansicht', sektor_id=sektor_id, ss_index=i) }}">{{ pill_letter }}</a>
+    {% else %}
+      <span class="nav-pill leer">{{ pill_letter }}</span>
+    {% endif %}
+  {% endfor %}
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="map-wrap">
+  <div class="legend">
+    <span class="leg"><span class="dot" style="background:var(--on-surface)"></span>WELT</span>
+    <span class="leg"><span class="ring-gg"></span>GASRIESE</span>
+    <span class="leg"><span class="swatch amber"></span>AMBER</span>
+    <span class="leg"><span class="swatch red"></span>ROT</span>
+    <span class="leg"><span class="line-komm"></span>KOMMUNIKATION</span>
+    <span class="leg"><span class="line-handel"></span>HANDEL</span>
+    <span class="leg"><span class="mono">M</span>MARINE <span class="mono">S</span>SCOUT <span class="mono">F</span>FORSCHUNG <span class="mono">T</span>TAS <span class="mono">K</span>KONSULAT <span class="mono">P</span>PIRATEN</span>
+    <span class="leg" style="color:var(--primary)">↳ HEX ANKLICKEN FÜR DETAILS</span>
+  </div>
+  <div class="mapcard">{{ svg | safe }}</div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="detail" id="detail" role="dialog" aria-modal="true" aria-label="Weltdetails">
+  <div class="detail__eyebrow" id="d-eyebrow">WELT · ESC ODER TIPPEN ZUM SCHLIESSEN</div>
+  <h2 class="detail__title" id="d-name"></h2>
+  <div class="detail__uwp" id="d-uwp"></div>
+  <div class="statstrip" id="d-stats"></div>
+  <dl class="kv" id="d-kv"></dl>
+  <div class="badges" id="d-badges"></div>
+  <div id="d-links"></div>
+  <button class="close-btn" id="d-close" type="button">Schließen</button>
+</aside>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const WELTEN = {{ welten_data | tojson }};
+const LINKS  = {{ links | tojson }};
+
+const RAUMHAFEN = {A:"Erstklassig — Treibstoff, Werft, Schiffsbau",B:"Gut — Treibstoff, Werft",
+  C:"Routine — Treibstoff, begrenzte Reparatur",D:"Einfach — unraffinierter Treibstoff",
+  E:"Grenzwertig — nur Landefeld",X:"Kein Raumhafen"};
+const GROESSE = {0:"800 km · vernachl. g",1:"1.600 km · 0,05 g",2:"3.200 km · 0,15 g",3:"4.800 km · 0,25 g",
+  4:"6.400 km · 0,35 g",5:"8.000 km · 0,45 g",6:"9.600 km · 0,7 g",7:"11.200 km · 0,9 g",
+  8:"12.800 km · 1,0 g",9:"14.400 km · 1,25 g",10:"16.000 km · 1,4 g"};
+const ATMO = {0:"Keine",1:"Spuren",2:"Sehr dünn, verseucht",3:"Sehr dünn",4:"Dünn, verseucht",5:"Dünn",
+  6:"Standard",7:"Standard, verseucht",8:"Dicht",9:"Dicht, verseucht",10:"Exotisch",11:"Korrosiv",
+  12:"Insidiös",13:"Dicht, hoch",14:"Dünn, niedrig",15:"Ungewöhnlich"};
+const HYDRO = {0:"0–5% · Wüstenwelt",1:"6–15% · Trockenwelt",2:"16–25%",3:"26–35%",4:"36–45% · feucht",
+  5:"46–55%",6:"56–65%",7:"66–75% · erdähnlich",8:"76–85% · Wasserwelt",9:"86–95%",10:"96–100% · fast nur Wasser"};
+const BEV = {0:"Keine",1:"Wenige (1+)",2:"Hunderte",3:"Tausende",4:"Zehntausende",5:"Hunderttausende",
+  6:"Millionen",7:"Zehn Mio.",8:"Hunderte Mio.",9:"Milliarden",10:"Zehn Mrd.",11:"Hunderte Mrd.",12:"Billionen"};
+const REG = {0:"Keine",1:"Firma/Konzern",2:"Partizipative Demokratie",3:"Selbsterhaltende Oligarchie",
+  4:"Repräsentative Demokratie",5:"Feudale Technokratie",6:"Marionettenregierung",7:"Balkanisiert",
+  8:"Beamtenbürokratie",9:"Unpersönliche Bürokratie",10:"Charismatischer Diktator",
+  11:"Nicht-charism. Diktator",12:"Charismatische Oligarchie",13:"Religiöse Diktatur"};
+const GESETZ = {0:"Keine Beschränkungen",1:"Verbot: WMD, Gifte, Sprengstoff",2:"Verbot: tragbare Energiewaffen",
+  3:"Verbot: schwere Waffen",4:"Verbot: leichte Sturmwaffen, MPs",5:"Verbot: versteckbare Waffen",
+  6:"Verbot: Schusswaffen (außer Schrot/Betäuber)",7:"Verbot: Schrotflinten",8:"Verbot: Klingen, Betäuber",
+  9:"Verbot: alle Waffen"};
+const TL = {0:"Steinzeit",1:"Bronze / Eisen",2:"Renaissance",3:"Schießpulver",4:"Industriell",
+  5:"Verbrennungsmotor",6:"Atomzeitalter",7:"Frühe Raumfahrt",8:"Frühes Informationszeitalter",
+  9:"Gravitationskontrolle",10:"Interstellar (früh)",11:"Mittlere Stufe",12:"Imperialer Durchschnitt",
+  13:"Hoch",14:"Sehr hoch",15:"Imperiales Maximum",16:"Experimentell"};
+const TRADE = {Ag:"Agrarwelt",As:"Asteroid",Ba:"Öde",De:"Wüste",Fl:"Flüssige Ozeane",Ga:"Gartenwelt",
+  Hi:"Hohe Bevölkerung",Ht:"Hochtechnologie",Ic:"Eisbedeckt",In:"Industriewelt",Lo:"Geringe Bevölkerung",
+  Lt:"Niedrige Technologie",Na:"Nicht-agrarisch",Ni:"Nicht-industriell",Po:"Arm",Ri:"Reich",
+  Wa:"Wasserwelt",Va:"Vakuum"};
+const ZONE = {gruen:["Ruhig","badge--ok"],amber:["Amber","badge--amber"],rot:["Rot — interdiziert","badge--red"]};
+const TEMP_FARBE = {Gefroren:"var(--secondary)", Kalt:"var(--secondary)",
+  "Gemäßigt":"var(--on-surface)", "Heiß":"var(--tertiary)", "Glühend":"var(--error)"};
+
+const dec = (t,v,cap) => t[v] ?? t[Math.min(v,cap)] ?? String(v);
+
+const detail = document.getElementById("detail");
+const scrim  = document.getElementById("scrim");
+
+function openHex(hex) {
+  const w = WELTEN[hex]; if (!w) return;
+  document.getElementById("d-eyebrow").textContent = `WELT ${hex} · ESC ODER TIPPEN ZUM SCHLIESSEN`;
+  document.getElementById("d-name").textContent  = w.name;
+  document.getElementById("d-uwp").textContent   = w.uwp + (w.zugehoerigkeit ? "   " + w.zugehoerigkeit : "");
+
+  document.getElementById("d-stats").innerHTML =
+    stat(w.raumhafen, "Raumhafen") + stat("TL " + w.techlevel, "Tech-Level")
+    + stat(w.basen && w.basen.length ? w.basen.join("+") : "—", "Basen");
+
+  document.getElementById("d-kv").innerHTML =
+      kv("Raumhafen",    RAUMHAFEN[w.raumhafen])
+    + kv("Größe",        dec(GROESSE, w.groesse, 10))
+    + kv("Atmosphäre",   dec(ATMO, w.atmosphaere, 15))
+    + kv("Hydrographie", dec(HYDRO, w.hydrographie, 10))
+    + kv("Temperatur",   tempHtml(w.temperatur))
+    + kv("Bevölkerung",  dec(BEV, w.bevoelkerung, 12))
+    + kv("Regierung",    dec(REG, w.regierung, 13))
+    + kv("Gesetz",       dec(GESETZ, w.gesetz, 9))
+    + kv("Tech-Level",   dec(TL, w.techlevel, 16))
+    + kv("Gasriese",     w.gasriesen ? "Vorhanden" : "Keiner");
+
+  let b = (w.handelscodes || []).map(c =>
+    `<span class="badge badge--code">${c} · ${TRADE[c] || c}</span>`).join("");
+  const z = ZONE[w.reisezone] || ZONE.gruen;
+  b += `<span class="badge ${z[1]}">${z[0]}</span>`;
+  document.getElementById("d-badges").innerHTML = b;
+
+  document.getElementById("d-links").innerHTML = renderExtras(w) + renderLinks(LINKS[hex]);
+
+  pin(hex);
+  scrim.classList.add("open");
+  detail.classList.add("open");
+}
+
+function stat(v, l) {
+  return `<div><div class="stat__v">${v}</div><div class="stat__l">${l}</div></div>`;
+}
+function kv(k, v) {
+  return `<div class="row" style="display:contents"></div><dt>${k}</dt><dd>${v}</dd>`;
+}
+function tempHtml(t) {
+  return t ? `<span style="color:${TEMP_FARBE[t] || 'var(--on-surface)'}">${t}</span>` : "—";
+}
+function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+function row2(k, v) { return `<span class="k">${k}</span><span class="v">${v}</span>`; }
+
+function renderExtras(w) {
+  const rd = w.raumhafen_details || {};
+  const kosten = rd.anlegekosten ? "Cr. " + Number(rd.anlegekosten).toLocaleString("de-DE") : "—";
+  let sp = `<div class="sec-label">Raumhafen-Details</div><div class="kv2">`
+    + row2("Treibstoff",  rd.treibstoff  ? cap(rd.treibstoff)  : "keiner")
+    + row2("Anlegekosten", kosten)
+    + row2("Werft",       rd.werft       || "—")
+    + row2("Reparatur",   rd.reparatur   ? cap(rd.reparatur)   : "—")
+    + `</div>`;
+  let ku = "";
+  if (w.kultur) {
+    ku = `<div class="sec-label">Kultur</div>`
+       + `<div class="kultur-text"><b>${w.kultur.name}</b> — ${w.kultur.beschreibung}</div>`;
+  }
+  return sp + ku;
+}
+
+function renderLinks(L) {
+  L = L || {};
+  const sect = (label, items, fmt) => {
+    let h = `<div class="sec-label">${label}</div>`;
+    if (!items || !items.length) return h + `<div class="empty-detail">— keine —</div>`;
+    return h + items.map(fmt).join("");
+  };
+  const nscHtml = sect("NSCs", L.nscs, n =>
+    `<div class="link-row"><span class="link-row__name">${n.name}`
+    + (n.geheim ? ` <span class="badge badge--secret">geheim</span>` : ``)
+    + `</span><span class="link-row__meta">${n.rolle || ""} · ${n.status || ""}</span></div>`);
+  const aufHtml = sect("Aufträge", L.auftraege, a =>
+    `<div class="link-row"><span class="link-row__name">${a.titel}</span>`
+    + `<span class="link-row__meta">${a.status || ""}</span></div>`);
+  const fraHtml = sect("Fraktionen", L.fraktionen, f =>
+    `<div class="link-row"><span class="link-row__name">${f.name}</span>`
+    + `<span class="link-row__meta">${f.typ || ""}${f.staerke ? " · " + f.staerke : ""}</span></div>`);
+  return nscHtml + aufHtml + fraHtml;
+}
+
+const svg = document.querySelector(".mapcard svg");
+const pinRing = svg.querySelector(".pin-ring");
+
+function pin(hex) {
+  const poly = svg.querySelector(`polygon[data-hex="${hex}"]`);
+  if (poly) pinRing.setAttribute("points", poly.getAttribute("points"));
+}
+
+function closeDetail() {
+  scrim.classList.remove("open");
+  detail.classList.remove("open");
+  pinRing.setAttribute("points", "");
+}
+
+svg.addEventListener("click", e => {
+  const poly = e.target.closest("polygon[data-hex]");
+  if (poly && WELTEN[poly.getAttribute("data-hex")]) openHex(poly.getAttribute("data-hex"));
+});
+document.getElementById("d-close").addEventListener("click", closeDetail);
+scrim.addEventListener("click", closeDetail);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDetail(); });
+</script>
+{% endblock %}
