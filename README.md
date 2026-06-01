@@ -8,7 +8,7 @@ anklickbare Hexkarte mit Detailkarte – im SPECTRUM-Look.
 
 ```bash
 pip install flask
-python app.py
+python run.py
 ```
 
 Dann im Browser: **http://127.0.0.1:5000**
@@ -40,24 +40,38 @@ Dazu Routen zwischen nahen, wichtigen bzw. komplementären Welten.
 ## Aufbau
 
 ```
-app.py             Flask-Routen (Übersicht, Generieren, Ansicht, Export, Löschen)
-db.py              SQLite-Verbindung pro Request (+ Auto-Init des Schemas)
-persist.py         Generierung → DB schreiben; DB → laden & JSON hydrieren
-schema.sql         Datenmodell (Sektor/Welt/NSC/Fraktion/Auftrag/Route/…)
+run.py                       Einstiegspunkt: python run.py
+app/
+  __init__.py                create_app()-Factory (Blueprints + DB-Init)
+  config.py                  Development/Production/Testing-Config
+  db.py                      SQLite-Verbindung pro Request (+ Auto-Init des Schemas)
+  persist.py                 Generierung → DB schreiben; DB → laden & JSON hydrieren
+  schema.sql                 Datenmodell (Sektor/Welt/NSC/Fraktion/Auftrag/Route/…)
+  blueprints/
+    main.py                  Übersicht (GET /)
+    sektor.py                Generieren, Ansicht, Export, Löschen (/sektor/*)
+  generators/
+    sektor.py                Regelbasierte Welt-/Sektorgenerierung (seedbar)
+    faktionen.py             Fraktionsgenerator
+    routen.py                Hexdistanz + Routen-Heuristik
+  rendering/
+    hexmap.py                SVG-Hexkarte
+  templates/                 base.html, index.html, sektor/subsektor.html (Jinja2)
+  static/                    spectrum.css (Tokens + Komponenten)
+tests/                       Smoke-Tests (pytest)
 
-sektor_generator.py  Regelbasierte Welt-/Sektorgenerierung (seedbar)
-faktionen.py         Fraktionsgenerator
-routes.py            Hexdistanz + Routen-Heuristik
-hexmap.py            SVG-Hexkarte
-detailkarte.py       Interaktive Seite (Karte + Detail-Overlay-Card)
-
-templates/         base.html, index.html (Übersicht)
-static/            spectrum.css (Tokens + Komponenten der Übersicht)
-traveller.db       SQLite-Datei (wird beim ersten Start angelegt)
+traveller.db                 SQLite-Datei (wird beim ersten Start angelegt)
 ```
 
-Die Datei `traveller.db` enthält bereits einen **Demo-Sektor** („Testsektor").
-Über *Löschen* auf der Übersicht entfernbar.
+Die Datenbank `traveller.db` wird beim ersten Start automatisch angelegt
+(Schema aus `app/schema.sql`) und ist nicht im Repo eingecheckt.
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest
+```
 
 ## Hinweise & Grenzen (v0.1)
 

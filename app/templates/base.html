@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='spectrum.css') }}">
+{% block head %}{% endblock %}
 </head>
 <body>
   <header class="studio-header">
@@ -16,5 +17,7 @@
     </div>
     <div class="actions">{% block actions %}{% endblock %}</div>
   </header>
-  <main class="wrap">{% block content %}{% endblock %}</main>
+  {% block subheader %}{% endblock %}
+  <main>{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
 </body></html>

@@ -19,7 +19,7 @@ Nur Standardbibliothek.
 
 from __future__ import annotations
 import random
-from sektor_generator import REGIERUNG_NAMEN, w, clamp
+from .sektor import REGIERUNG_NAMEN, w, clamp
 
 # Fraktionsstaerketabelle (2W6): (obergrenze, kurz, beschreibung)
 STAERKE = [
@@ -126,7 +126,7 @@ def fraktion_zu_row(fr: dict, heimatwelt_id: int) -> dict:
 #  Demo
 # =====================================================================
 if __name__ == "__main__":
-    from sektor_generator import erzeuge_subsektor
+    from app.generators.sektor import erzeuge_subsektor
     SEED = "Demo-Sektor-2026"
     welten = erzeuge_subsektor(SEED, 0)
     gesamt = 0

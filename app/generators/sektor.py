@@ -107,7 +107,7 @@ TRADE_CODES = _trade_codes()
 # Das 13Mann-Buch druckt teils ABWEICHENDE deutsche Codes; Mapping hier:
 #   Buch Di = Hi (Hohe Bev.)   |  Buch Hi = Ht (Hightech)   <- ACHTUNG: vertauscht!
 #   Buch Od = Ba | Wue = De | Li = Fl | Ei = Ic | Due = Lo | Ar = Po | Re = Ri
-# Anzeige-Namen (Deutsch) liegen in der UI (detailkarte.py -> TRADE).
+# Anzeige-Namen (Deutsch) liegen in der UI (templates/sektor/subsektor.html -> TRADE).
 # Wer strikt die Buch-Codes will, mappt hier 1:1 um -- Einzeiler.
 CODE_DE = {"Ba": "Od", "De": "Wü", "Fl": "Li", "Ga": "Ga", "Hi": "Di", "Ht": "Hi",
            "Ic": "Ei", "Lo": "Dü", "Lt": "Lo", "Po": "Ar", "Ri": "Re"}

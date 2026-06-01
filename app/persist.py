@@ -7,7 +7,7 @@ Verbindet die (reinen, seedbaren) Generatoren mit der Datenbank:
                            Welten, Fraktionen und Routen in die Tabellen.
   * lade_*()            -- liest die gespeicherten Daten zurueck und
                            HYDRIERT die JSON-Spalten (Strings -> Python),
-                           damit die Renderer (hexmap/detailkarte) sie direkt
+                           damit die Renderer (hexmap/Templates) sie direkt
                            verwenden koennen.
 
 Die Renderer lesen Welt-Objekte ODER dicts; hier liefern wir dicts.
@@ -16,9 +16,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from sektor_generator import erzeuge_sektor, welt_zu_row
-from faktionen import erzeuge_fraktionen, fraktion_zu_row, _staerke
-from routes import gen_alle_routen
+from .generators.sektor import erzeuge_sektor, welt_zu_row
+from .generators.faktionen import erzeuge_fraktionen, fraktion_zu_row, _staerke
+from .generators.routen import gen_alle_routen
 
 # JSON-Spalten der welt-Tabelle, die beim Laden geparst werden muessen
 _JSON_COLS = ("handelscodes", "basen", "raumhafen_details", "kultur",
@@ -179,32 +179,6 @@ def subsektoren_mit_welten(db: sqlite3.Connection, sektor_id: int) -> set[int]:
         "SELECT DISTINCT s.idx FROM subsektor s JOIN welt w ON w.subsektor_id=s.id "
         "WHERE s.sektor_id=?", (sektor_id,)).fetchall()
     return {r["idx"] for r in rows}
-
-
-# =====================================================================
-#  Subsektor-Navigation (A..P) -- als HTML-Schnipsel fuer render_app
-# =====================================================================
-def baue_nav(sektor_id: int, aktiv_idx: int, vorhanden: set[int]) -> str:
-    pills = []
-    for i in range(16):
-        letter = chr(65 + i)
-        if i == aktiv_idx:
-            pills.append(f'<a class="nav-pill on" href="/sektor/{sektor_id}/subsektor/{i}">{letter}</a>')
-        elif i in vorhanden:
-            pills.append(f'<a class="nav-pill" href="/sektor/{sektor_id}/subsektor/{i}">{letter}</a>')
-        else:
-            pills.append(f'<span class="nav-pill leer">{letter}</span>')
-    style = """<style>
-      .subnav{display:flex;flex-wrap:wrap;gap:6px;padding:12px 24px 0;}
-      .nav-pill{display:grid;place-items:center;min-width:30px;height:28px;padding:0 9px;
-        border-radius:9999px;font-family:var(--font-mono);font-size:.72rem;text-decoration:none;
-        color:var(--on-variant);border:1px solid rgba(65,74,52,.4);
-        transition:background 120ms var(--ease),color 120ms var(--ease);}
-      .nav-pill:hover{color:var(--on-surface);background:var(--container-high);}
-      .nav-pill.on{background:var(--primary);color:var(--on-primary);border-color:transparent;font-weight:600;}
-      .nav-pill.leer{opacity:.3;pointer-events:none;}
-    </style>"""
-    return style + '<div class="subnav">' + "".join(pills) + "</div>"
 
 
 # =====================================================================

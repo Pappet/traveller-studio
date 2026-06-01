@@ -150,7 +150,7 @@ if __name__ == "__main__":
         print(f"  {flag}d({a},{b}) = {ist}  (erwartet {soll})")
     print("\nAlle Distanzen korrekt." if ok else "\nFEHLER in der Distanzfunktion!")
 
-    from sektor_generator import erzeuge_subsektor
+    from app.generators.sektor import erzeuge_subsektor
     w = erzeuge_subsektor("Demo-Sektor-2026", 0)
     k = gen_kommunikationsrouten(w)
     h = gen_handelsrouten(w)
