@@ -333,9 +333,13 @@ def erzeuge_welt(seed: str, hexcode: str, *, zugehoerigkeit: str | None = "Im") 
                  reg=reg, gesetz=gesetz, tl=tl)
     handelscodes = [code for code, pred in TRADE_CODES if pred(werte)]
 
-    # --- Reisezone: Amber-Kandidat? ------------------------------------
-    amber = (atmo >= 10) or (reg in (0, 7, 10)) or (gesetz == 0) or (gesetz >= 9)
-    reisezone = "amber" if amber else "gruen"
+    # --- Reisezone ---------------------------------------------------------
+    # Rot: insidiöse Atmosphäre (C = 12+) – Schutzanzüge versagen langfristig
+    rot = (atmo >= 12)
+    # Amber: korrosive/exotische Atm, anarchische/balkanisierte/charismatische Reg,
+    #        extremes Gesetz (9+) – Gesetz 0 ist KEIN Amber-Grund (nur gesetzlos)
+    amber = not rot and ((atmo >= 10) or (reg in (0, 7, 10)) or (gesetz >= 9))
+    reisezone = "rot" if rot else ("amber" if amber else "gruen")
 
     # --- UWP-String ----------------------------------------------------
     uwp = (raumhafen
