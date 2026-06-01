@@ -35,7 +35,8 @@
         <div class="card__seed">SEED // {{ s.seed }}</div>
       </a>
       <form method="post" action="{{ url_for('sektor.sektor_loeschen', sektor_id=s.id) }}"
-            onsubmit="return confirm('Sektor „{{ s.name }}" wirklich löschen?');">
+            data-name="{{ s.name }}"
+            onsubmit="return confirm('Sektor „' + this.dataset.name + '“ wirklich löschen?');">
         <button class="btn btn--ghost btn--sm" type="submit">LÖSCHEN</button>
       </form>
     </div>

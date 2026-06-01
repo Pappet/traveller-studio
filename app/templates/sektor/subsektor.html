@@ -93,6 +93,9 @@ const TEMP_FARBE = {Gefroren:"var(--secondary)", Kalt:"var(--secondary)",
   "Gemäßigt":"var(--on-surface)", "Heiß":"var(--tertiary)", "Glühend":"var(--error)"};
 
 const dec = (t,v,cap) => t[v] ?? t[Math.min(v,cap)] ?? String(v);
+// HTML-Escape fuer Freitext-Felder (Namen, Beschreibungen) vor innerHTML.
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 const detail = document.getElementById("detail");
 const scrim  = document.getElementById("scrim");
@@ -120,7 +123,7 @@ function openHex(hex) {
     + kv("Gasriese",     w.gasriesen ? "Vorhanden" : "Keiner");
 
   let b = (w.handelscodes || []).map(c =>
-    `<span class="badge badge--code">${c} · ${TRADE[c] || c}</span>`).join("");
+    `<span class="badge badge--code">${esc(c)} · ${esc(TRADE[c] || c)}</span>`).join("");
   const z = ZONE[w.reisezone] || ZONE.gruen;
   b += `<span class="badge ${z[1]}">${z[0]}</span>`;
   document.getElementById("d-badges").innerHTML = b;
@@ -136,7 +139,7 @@ function stat(v, l) {
   return `<div><div class="stat__v">${v}</div><div class="stat__l">${l}</div></div>`;
 }
 function kv(k, v) {
-  return `<div class="row" style="display:contents"></div><dt>${k}</dt><dd>${v}</dd>`;
+  return `<dt>${k}</dt><dd>${v}</dd>`;
 }
 function tempHtml(t) {
   return t ? `<span style="color:${TEMP_FARBE[t] || 'var(--on-surface)'}">${t}</span>` : "—";
@@ -148,15 +151,15 @@ function renderExtras(w) {
   const rd = w.raumhafen_details || {};
   const kosten = rd.anlegekosten ? "Cr. " + Number(rd.anlegekosten).toLocaleString("de-DE") : "—";
   let sp = `<div class="sec-label">Raumhafen-Details</div><div class="kv2">`
-    + row2("Treibstoff",  rd.treibstoff  ? cap(rd.treibstoff)  : "keiner")
+    + row2("Treibstoff",  rd.treibstoff  ? esc(cap(rd.treibstoff))  : "keiner")
     + row2("Anlegekosten", kosten)
-    + row2("Werft",       rd.werft       || "—")
-    + row2("Reparatur",   rd.reparatur   ? cap(rd.reparatur)   : "—")
+    + row2("Werft",       esc(rd.werft   || "—"))
+    + row2("Reparatur",   rd.reparatur   ? esc(cap(rd.reparatur))   : "—")
     + `</div>`;
   let ku = "";
   if (w.kultur) {
     ku = `<div class="sec-label">Kultur</div>`
-       + `<div class="kultur-text"><b>${w.kultur.name}</b> — ${w.kultur.beschreibung}</div>`;
+       + `<div class="kultur-text"><b>${esc(w.kultur.name)}</b> — ${esc(w.kultur.beschreibung)}</div>`;
   }
   return sp + ku;
 }
@@ -169,15 +172,15 @@ function renderLinks(L) {
     return h + items.map(fmt).join("");
   };
   const nscHtml = sect("NSCs", L.nscs, n =>
-    `<div class="link-row"><span class="link-row__name">${n.name}`
+    `<div class="link-row"><span class="link-row__name">${esc(n.name)}`
     + (n.geheim ? ` <span class="badge badge--secret">geheim</span>` : ``)
-    + `</span><span class="link-row__meta">${n.rolle || ""} · ${n.status || ""}</span></div>`);
+    + `</span><span class="link-row__meta">${esc(n.rolle || "")} · ${esc(n.status || "")}</span></div>`);
   const aufHtml = sect("Aufträge", L.auftraege, a =>
-    `<div class="link-row"><span class="link-row__name">${a.titel}</span>`
-    + `<span class="link-row__meta">${a.status || ""}</span></div>`);
+    `<div class="link-row"><span class="link-row__name">${esc(a.titel)}</span>`
+    + `<span class="link-row__meta">${esc(a.status || "")}</span></div>`);
   const fraHtml = sect("Fraktionen", L.fraktionen, f =>
-    `<div class="link-row"><span class="link-row__name">${f.name}</span>`
-    + `<span class="link-row__meta">${f.typ || ""}${f.staerke ? " · " + f.staerke : ""}</span></div>`);
+    `<div class="link-row"><span class="link-row__name">${esc(f.name)}</span>`
+    + `<span class="link-row__meta">${esc(f.typ || "")}${f.staerke ? " · " + esc(f.staerke) : ""}</span></div>`);
   return nscHtml + aufHtml + fraHtml;
 }
 

@@ -15,6 +15,8 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    # Kein Dev-Fallback in Produktion: SECRET_KEY MUSS gesetzt sein.
+    SECRET_KEY = os.environ.get("SECRET_KEY")
 
 
 class TestingConfig(Config):
