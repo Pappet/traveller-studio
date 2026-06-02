@@ -234,6 +234,45 @@ def _update(db: sqlite3.Connection, tabelle: str, row_id: int,
     db.commit()
 
 
+# ---------------------------------------------------------------------
+#  Kampagne (Wurzel)
+# ---------------------------------------------------------------------
+_KAMPAGNE_EDIT = {"name", "notizen"}
+
+
+def erstelle_kampagne(db: sqlite3.Connection, name: str, notizen: str | None = None) -> int:
+    return _insert(db, "kampagne", {"name": name or "Unbenannte Kampagne",
+                                    "notizen": notizen})
+
+
+def lade_kampagne(db: sqlite3.Connection, kampagne_id: int) -> dict | None:
+    r = db.execute("SELECT * FROM kampagne WHERE id=?", (kampagne_id,)).fetchone()
+    return dict(r) if r else None
+
+
+def liste_kampagnen(db: sqlite3.Connection) -> list[dict]:
+    rows = db.execute(
+        "SELECT id, name, notizen FROM kampagne ORDER BY erstellt_am DESC").fetchall()
+    out = []
+    for k in rows:
+        sek = db.execute("SELECT COUNT(*) c FROM sektor WHERE kampagne_id=?",
+                         (k["id"],)).fetchone()["c"]
+        nsc = db.execute("SELECT COUNT(*) c FROM nsc WHERE kampagne_id=?",
+                         (k["id"],)).fetchone()["c"]
+        out.append({"id": k["id"], "name": k["name"], "notizen": k["notizen"],
+                    "sektoren": sek, "nscs": nsc})
+    return out
+
+
+def aktualisiere_kampagne(db: sqlite3.Connection, kampagne_id: int, felder: dict) -> None:
+    _update(db, "kampagne", kampagne_id, felder, _KAMPAGNE_EDIT)
+
+
+def loesche_kampagne(db: sqlite3.Connection, kampagne_id: int) -> None:
+    db.execute("DELETE FROM kampagne WHERE id=?", (kampagne_id,))
+    db.commit()
+
+
 def welt_kontext(db: sqlite3.Connection, welt_id: int) -> dict | None:
     """Liefert {welt_id, sektor_id, ss_index, hex, name} fuer Redirects/Forms."""
     r = db.execute(
