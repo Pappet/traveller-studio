@@ -8,5 +8,5 @@ bp = Blueprint("main", __name__)
 
 @bp.route("/")
 def index():
-    sektoren = persist.liste_sektoren(dbmod.get_db())
-    return render_template("index.html", sektoren=sektoren)
+    kampagnen = persist.liste_kampagnen(dbmod.get_db())
+    return render_template("kampagne_liste.html", kampagnen=kampagnen)

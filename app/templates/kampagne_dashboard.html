@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ kampagne.name }} · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ home_url }}">KAMPAGNEN</a>
+<a class="btn btn--ghost" href="{{ url_for('kampagne.kampagne_bearbeiten', kampagne_id=kampagne.id) }}">BEARBEITEN</a>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="crumb"><a href="{{ home_url }}">KAMPAGNEN</a> / {{ kampagne.name | upper }}</div>
+
+  <!-- ============ SEKTOREN ============ -->
+  <section class="panel">
+    <div class="sec-label">Sektor generieren</div>
+    <form method="post" action="{{ url_for('sektor.sektor_generieren') }}" class="genform">
+      <input type="hidden" name="kampagne_id" value="{{ kampagne.id }}">
+      <label>Name <input name="name" placeholder="z. B. Reft-Marken" required></label>
+      <label>Seed <input name="seed" placeholder="leer = zufällig"></label>
+      <label>Dichte
+        <select name="dichte">
+          <option value="normal">Normal (50 %)</option>
+          <option value="dicht">Dicht (+1)</option>
+          <option value="duenn">Dünn (−1)</option>
+          <option value="rift">Rift (−2)</option>
+        </select>
+      </label>
+      <button class="btn btn--primary" type="submit">GENERIEREN</button>
+    </form>
+  </section>
+
+  <div class="sec-label">Sektoren</div>
+  {% if sektoren %}
+  <div class="cards">
+    {% for s in sektoren %}
+    <div class="card">
+      <a class="card__link" href="{{ url_for('sektor.subsektor_ansicht', sektor_id=s.id, ss_index=0) }}">
+        <div class="card__name">{{ s.name }}</div>
+        <div class="card__meta">{{ s.welten }} Welten&nbsp;&nbsp;·&nbsp;&nbsp;{{ s.fraktionen }} Fraktionen</div>
+        <div class="card__seed">SEED // {{ s.seed }}</div>
+      </a>
+      <form method="post" action="{{ url_for('sektor.sektor_loeschen', sektor_id=s.id) }}"
+            data-name="{{ s.name }}"
+            onsubmit="return confirm('Sektor „' + this.dataset.name + '“ wirklich löschen?');">
+        <button class="btn btn--ghost btn--sm" type="submit">LÖSCHEN</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch kein Sektor — generiere oben deinen ersten</div>
+  {% endif %}
+
+  <!-- ============ NSCs ============ -->
+  <div class="sec-label">NSCs</div>
+  {% if nscs %}
+  <div class="list">
+    {% for n in nscs %}
+    <a class="list__row" href="{{ url_for('nsc.nsc_bearbeiten', nsc_id=n.id) }}">
+      <span class="list__name">{{ n.name }}</span>
+      <span class="list__meta">{{ n.rolle or "—" }}{% if n.ort %} · {{ n.ort }}{% else %} · unverortet{% endif %}</span>
+      {% if n.status == "tot" %}<span class="badge badge--err">TOT</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine NSCs</div>
+  {% endif %}
+
+  <!-- ============ FRAKTIONEN ============ -->
+  <div class="sec-label">Fraktionen</div>
+  {% if fraktionen %}
+  <div class="list">
+    {% for f in fraktionen %}
+    <a class="list__row" href="{{ url_for('fraktion.fraktion_bearbeiten', fraktion_id=f.id) }}">
+      <span class="list__name">{{ f.name }}</span>
+      <span class="list__meta">{{ f.typ or "—" }}{% if f.heimat %} · {{ f.heimat }}{% endif %} · {{ f.reichweite or "lokal" }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine Fraktionen</div>
+  {% endif %}
+
+  <!-- ============ AUFTRÄGE ============ -->
+  <div class="sec-label">Aufträge</div>
+  {% if auftraege %}
+  <div class="list">
+    {% for a in auftraege %}
+    <a class="list__row" href="{{ url_for('auftrag.auftrag_bearbeiten', auftrag_id=a.id) }}">
+      <span class="list__name">{{ a.titel }}</span>
+      <span class="list__meta">{{ a.typ or "—" }}{% if a.ort %} · {{ a.ort }}{% endif %}</span>
+      <span class="badge badge--mut">{{ a.status | upper }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine Aufträge</div>
+  {% endif %}
+</div>
+{% endblock %}

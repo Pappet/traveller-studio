@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Kampagne bearbeiten · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">KAMPAGNEN</a> / {{ kampagne.name }} / BEARBEITEN</div>
+  <h1 class="form-title">Kampagne bearbeiten</h1>
+
+  <form method="post" action="{{ action }}">
+    <div class="form-card">
+      <div class="field"><label for="name">Name</label>
+        <input class="inp" id="name" name="name" value="{{ kampagne.name }}" required autofocus></div>
+      <div class="field"><label for="notizen">Notizen</label>
+        <textarea class="inp" id="notizen" name="notizen" rows="5">{{ kampagne.notizen or "" }}</textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn--primary" type="submit">SPEICHERN</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

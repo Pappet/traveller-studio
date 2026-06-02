@@ -276,6 +276,33 @@ def loesche_kampagne(db: sqlite3.Connection, kampagne_id: int) -> None:
     db.commit()
 
 
+# ---------------------------------------------------------------------
+#  Kampagnen-Listen (Dashboard)
+# ---------------------------------------------------------------------
+def liste_nscs(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT n.id, n.name, n.rolle, n.status, n.aufenthalt_welt_id, w.name AS ort "
+        "FROM nsc n LEFT JOIN welt w ON n.aufenthalt_welt_id=w.id "
+        "WHERE n.kampagne_id=? ORDER BY n.name", (kampagne_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def liste_fraktionen(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT fr.id, fr.name, fr.typ, fr.reichweite, fr.einfluss, w.name AS heimat "
+        "FROM fraktion fr LEFT JOIN welt w ON fr.heimatwelt_id=w.id "
+        "WHERE fr.kampagne_id=? ORDER BY fr.name", (kampagne_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def liste_auftraege(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT a.id, a.titel, a.typ, a.status, w.name AS ort "
+        "FROM auftrag a LEFT JOIN welt w ON a.welt_id=w.id "
+        "WHERE a.kampagne_id=? ORDER BY a.status, a.titel", (kampagne_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def welt_kontext(db: sqlite3.Connection, welt_id: int) -> dict | None:
     """Liefert {welt_id, sektor_id, ss_index, hex, name, kampagne_id} fuer Redirects/Forms."""
     r = db.execute(

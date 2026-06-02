@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Kampagnen · Traveller Studio{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <section class="panel">
+    <div class="sec-label">Neue Kampagne anlegen</div>
+    <form method="post" action="{{ url_for('kampagne.kampagne_neu') }}" class="genform">
+      <label>Name
+        <input name="name" placeholder="z. B. Die Reft-Chroniken" required autofocus>
+      </label>
+      <label>Notizen
+        <input name="notizen" placeholder="optional">
+      </label>
+      <button class="btn btn--primary" type="submit">ANLEGEN</button>
+    </form>
+  </section>
+
+  <div class="sec-label">Kampagnen</div>
+  {% if kampagnen %}
+  <div class="cards">
+    {% for k in kampagnen %}
+    <div class="card">
+      <a class="card__link" href="{{ url_for('kampagne.dashboard', kampagne_id=k.id) }}">
+        <div class="card__name">{{ k.name }}</div>
+        <div class="card__meta">{{ k.sektoren }} Sektoren&nbsp;&nbsp;·&nbsp;&nbsp;{{ k.nscs }} NSCs</div>
+        {% if k.notizen %}<div class="card__seed">{{ k.notizen }}</div>{% endif %}
+      </a>
+      <form method="post" action="{{ url_for('kampagne.kampagne_loeschen', kampagne_id=k.id) }}"
+            data-name="{{ k.name }}"
+            onsubmit="return confirm('Kampagne „' + this.dataset.name + '“ samt allen Sektoren/NSCs wirklich löschen?');">
+        <button class="btn btn--ghost btn--sm" type="submit">LÖSCHEN</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine Kampagne — lege oben deine erste an</div>
+  {% endif %}
+</div>
+{% endblock %}
