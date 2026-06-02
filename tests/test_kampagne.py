@@ -135,6 +135,16 @@ def test_fraktionsnamen_eindeutig_pro_welt(app_ctx):
         assert len(namen) == len(set(namen)), f"doppelte Fraktionsnamen: {namen}"
 
 
+def test_fraktionsnamen_kampagnenweit_eindeutig(app_ctx):
+    db = dbmod.get_db()
+    kid = persist.erstelle_kampagne(db, "K")
+    persist.speichere_sektor(db, "DUP-SEED", "S", dichte="dicht", kampagne_id=kid)
+    namen = [r["name"] for r in db.execute(
+        "SELECT name FROM fraktion WHERE kampagne_id=?", (kid,)).fetchall()]
+    assert namen, "Sektor sollte Fraktionen haben"
+    assert len(namen) == len(set(namen)), "Fraktionsnamen müssen kampagnenweit eindeutig sein"
+
+
 def test_fraktion_auftrag_standalone(client):
     app, c = client
     c.post("/kampagne/neu", data={"name": "K"})

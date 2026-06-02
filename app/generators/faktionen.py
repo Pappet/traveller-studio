@@ -39,20 +39,35 @@ def _staerke(roll: int) -> tuple[str, str]:
 
 
 # --- Fraktionsnamen (deterministisch) ------------------------------------
+# Bewusst grosser Namensraum, damit zufaellige Dopplungen selten sind; die
+# harte Eindeutigkeit erzwingt persist (Heimat-Zusatz bei Restkollision).
 _ADJ = ["Freie", "Vereinigte", "Wahre", "Rote", "Schwarze", "Erste", "Heilige",
-        "Geeinte", "Stille", "Eiserne", "Neue", "Alte"]
+        "Geeinte", "Stille", "Eiserne", "Neue", "Alte", "Goldene", "Graue",
+        "Ewige", "Stolze", "Treue", "Letzte", "Helle", "Verborgene", "Kühne",
+        "Wilde", "Reine", "Blaue"]
 _NOMEN = ["Front", "Bewegung", "Liga", "Allianz", "Bruderschaft", "Partei",
-          "Koalition", "Fraktion", "Garde", "Versammlung", "Union", "Zirkel"]
+          "Koalition", "Fraktion", "Garde", "Versammlung", "Union", "Zirkel",
+          "Bund", "Orden", "Kammer", "Phalanx", "Synode", "Konvent", "Gilde",
+          "Kohorte", "Initiative", "Strömung", "Bewahrer", "Schwurgemeinschaft"]
 _SACHE = ["Reform", "Freiheit", "Tradition", "Einheit", "Erneuerung", "Ordnung",
-          "Heimat", "Zukunft", "Wahrheit", "Gerechtigkeit", "Arbeit", "Sterne"]
+          "Heimat", "Zukunft", "Wahrheit", "Gerechtigkeit", "Arbeit", "Sterne",
+          "Würde", "Selbstbestimmung", "Erinnerung", "Aufbruch", "Vernunft",
+          "Hoffnung", "Pflicht", "Souveränität", "Erlösung", "Eintracht",
+          "Vergeltung", "Bewahrung"]
+_EIGEN = ["Korrin", "Vael", "Dax", "Sol", "Mira", "Tann", "Orin", "Hess",
+          "Lyr", "Quenn", "Brask", "Voren"]
 
 def _fraktionsname(rng: random.Random) -> str:
-    form = rng.randint(0, 2)
+    form = rng.randint(0, 4)
     if form == 0:
         return f"{rng.choice(_ADJ)} {rng.choice(_NOMEN)}"
     if form == 1:
         return f"{rng.choice(_NOMEN)} für {rng.choice(_SACHE)}"
-    return f"{rng.choice(_SACHE)}s{rng.choice(['front', 'bewegung', 'partei'])}"
+    if form == 2:
+        return f"{rng.choice(_SACHE)}s{rng.choice(['front', 'bewegung', 'partei', 'bund'])}"
+    if form == 3:
+        return f"{rng.choice(_NOMEN)} der {rng.choice(_SACHE)}"
+    return f"{rng.choice(_EIGEN)}-{rng.choice(_NOMEN)}"
 
 
 def _g(obj, key):
@@ -76,11 +91,8 @@ def erzeuge_fraktionen(welt, master_seed: str) -> list[dict]:
     dm = (1 if reg in (0, 7) else 0) + (-1 if reg >= 10 else 0)
     anzahl = max(0, w(rng, n=1, sides=3) + dm)
 
-    # Namen je Welt eindeutig halten: bei Kollision deterministisch I/II/III...
-    # (keine zusaetzlichen rng-Wuerfe -> Folge-Rolls bleiben stabil).
-    _ROEMISCH = ["", " II", " III", " IV", " V", " VI", " VII", " VIII"]
-    gesehen: dict[str, int] = {}
-
+    # Hinweis: Namens-Eindeutigkeit erzwingt persist kampagnenweit (Heimat-Zusatz)
+    # — der Generator bleibt rein pro Welt und kennt seine Nachbarn nicht.
     fraktionen: list[dict] = []
     for _ in range(anzahl):
         rolls: dict = {}
@@ -96,13 +108,8 @@ def erzeuge_fraktionen(welt, master_seed: str) -> list[dict]:
         sr = w(rng); rolls["staerke"] = sr
         st_kurz, st_lang = _staerke(sr)
 
-        basis = _fraktionsname(rng)
-        n_seen = gesehen.get(basis, 0)
-        gesehen[basis] = n_seen + 1
-        name = basis + (_ROEMISCH[n_seen] if n_seen < len(_ROEMISCH) else f" {n_seen + 1}")
-
         fraktionen.append({
-            "name": name,
+            "name": _fraktionsname(rng),
             "regierung": fr_reg,
             "regierung_name": REGIERUNG_NAMEN.get(fr_reg, "Sonstige"),
             "art": art,

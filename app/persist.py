@@ -27,6 +27,21 @@ _JSON_COLS = ("handelscodes", "basen", "raumhafen_details", "kultur",
               "sternendaten", "wuerfe")
 
 
+def _eindeutiger_fraktionsname(basis: str, heimat: str, gesehen: set[str]) -> str:
+    """Macht einen Fraktionsnamen kampagnenweit eindeutig: bei Kollision wird die
+    Heimatwelt angehaengt — 'Allianz fuer Arbeit (Koux)' — bei weiterer Kollision
+    durchnummeriert."""
+    if basis not in gesehen:
+        return basis
+    kand = f"{basis} ({heimat})"
+    if kand not in gesehen:
+        return kand
+    i = 2
+    while f"{basis} ({heimat} {i})" in gesehen:
+        i += 1
+    return f"{basis} ({heimat} {i})"
+
+
 # =====================================================================
 #  Schreiben: ganzen Sektor generieren und speichern
 # =====================================================================
@@ -56,10 +71,15 @@ def speichere_sektor(db: sqlite3.Connection, seed: str, name: str,
                         list(row.values()))
             hex2id[wlt.hex] = cur.lastrowid
 
-    # Fraktionen pro Welt -> fraktion-Tabelle (heimatwelt_id = diese Welt)
+    # Fraktionen pro Welt -> fraktion-Tabelle (heimatwelt_id = diese Welt).
+    # Namen kampagnenweit eindeutig: bei Kollision Heimatwelt anhaengen.
+    gesehen_namen = {r["name"] for r in db.execute(
+        "SELECT name FROM fraktion WHERE kampagne_id=?", (kampagne_id,)).fetchall()}
     for ss_index, welten in sektor_welten.items():
         for wlt in welten:
             for fr in erzeuge_fraktionen(wlt, seed):
+                fr["name"] = _eindeutiger_fraktionsname(fr["name"], wlt.name, gesehen_namen)
+                gesehen_namen.add(fr["name"])
                 frow = fraktion_zu_row(fr, hex2id[wlt.hex], kampagne_id)
                 spalten = ", ".join(frow.keys())
                 platzhalter = ", ".join("?" * len(frow))
