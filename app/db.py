@@ -26,11 +26,11 @@ def close_db(e=None) -> None:
 
 
 def init_db_if_needed() -> None:
-    """Legt das Schema an, falls die Tabelle `sektor` noch nicht existiert."""
+    """Legt das Schema an, falls die Tabelle `kampagne` noch nicht existiert."""
     con = sqlite3.connect(current_app.config["DB_PATH"])
     con.execute("PRAGMA foreign_keys = ON")
     vorhanden = con.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sektor'"
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='kampagne'"
     ).fetchone()
     if not vorhanden:
         with current_app.open_resource("schema.sql") as f:

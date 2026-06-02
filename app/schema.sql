@@ -14,11 +14,23 @@
 PRAGMA foreign_keys = ON;   -- pro Verbindung setzen, sonst werden FKs ignoriert!
 
 -- =====================================================================
+--  WURZEL
+-- =====================================================================
+
+CREATE TABLE kampagne (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    notizen     TEXT,
+    erstellt_am TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- =====================================================================
 --  BACKBONE
 -- =====================================================================
 
 CREATE TABLE sektor (
     id          INTEGER PRIMARY KEY,
+    kampagne_id INTEGER NOT NULL REFERENCES kampagne(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     notizen     TEXT,
     seed        TEXT,                       -- Generator-Seed (reproduzierbar)
@@ -81,6 +93,7 @@ CREATE TABLE welt (
 -- Fraktion ist KEIN Kind der Welt: kann mehrere Welten umspannen.
 CREATE TABLE fraktion (
     id           INTEGER PRIMARY KEY,
+    kampagne_id  INTEGER NOT NULL REFERENCES kampagne(id) ON DELETE CASCADE,
     name         TEXT NOT NULL,
     typ          TEXT,                       -- Regierung, Konzern, Kult, ...
     reichweite   TEXT CHECK (reichweite IN ('lokal','interstellar')),
@@ -96,8 +109,9 @@ CREATE TABLE fraktion (
 
 CREATE TABLE nsc (
     id           INTEGER PRIMARY KEY,
+    kampagne_id  INTEGER NOT NULL REFERENCES kampagne(id) ON DELETE CASCADE,
     name         TEXT NOT NULL,
-    welt_id      INTEGER REFERENCES welt(id) ON DELETE SET NULL, -- darf NULL: schiffsgebunden/unverortet
+    aufenthalt_welt_id INTEGER REFERENCES welt(id) ON DELETE SET NULL, -- aktueller Aufenthalt; NULL = schiffsgebunden/unverortet
 
     eigenschaften TEXT,       -- JSON: {"STR":7,"GES":9,...} (auch Alien-Werte)
     skills        TEXT,       -- JSON: {"Pilot":2,"Diplomatie":1,...}
@@ -135,6 +149,7 @@ CREATE TABLE nsc_fraktion (
 
 CREATE TABLE auftrag (
     id            INTEGER PRIMARY KEY,
+    kampagne_id   INTEGER NOT NULL REFERENCES kampagne(id) ON DELETE CASCADE,
     titel         TEXT NOT NULL,
     patron_nsc_id INTEGER REFERENCES nsc(id)      ON DELETE SET NULL,
     welt_id       INTEGER REFERENCES welt(id)     ON DELETE SET NULL,
@@ -195,10 +210,14 @@ CREATE TABLE verknuepfung (
 --  INDIZES
 -- =====================================================================
 
+CREATE INDEX idx_sektor_kampagne    ON sektor(kampagne_id);
 CREATE INDEX idx_subsektor_sektor   ON subsektor(sektor_id);
 CREATE INDEX idx_welt_sektor        ON welt(sektor_id);
 CREATE INDEX idx_welt_subsektor     ON welt(subsektor_id);
-CREATE INDEX idx_nsc_welt           ON nsc(welt_id);
+CREATE INDEX idx_nsc_kampagne       ON nsc(kampagne_id);
+CREATE INDEX idx_nsc_aufenthalt     ON nsc(aufenthalt_welt_id);
+CREATE INDEX idx_fraktion_kampagne  ON fraktion(kampagne_id);
+CREATE INDEX idx_auftrag_kampagne   ON auftrag(kampagne_id);
 CREATE INDEX idx_nf_nsc             ON nsc_fraktion(nsc_id);
 CREATE INDEX idx_nf_fraktion        ON nsc_fraktion(fraktion_id);
 CREATE INDEX idx_auftrag_patron     ON auftrag(patron_nsc_id);
