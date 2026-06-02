@@ -207,11 +207,24 @@ function renderLinks(L, w) {
     + `<a class="add-link" href="${addUrl}">${addText}</a></div>`;
   const empty = `<div class="empty-detail">— keine —</div>`;
 
-  let nscHtml = head("NSCs", U.nscNeu(w.id), "+ NSC");
-  nscHtml += (L.nscs && L.nscs.length) ? L.nscs.map(n =>
+  const nscRow = n =>
     `<div class="link-row"><a class="link-row__name" href="${U.nscEdit(n.id)}">${esc(n.name)}`
     + (n.geheim ? ` <span class="badge badge--secret">geheim</span>` : ``)
-    + `</a><span class="link-row__meta">${esc(n.rolle || "")} · ${esc(n.status || "")}</span></div>`).join("") : empty;
+    + `</a><span class="link-row__meta">${esc(n.rolle || "")}${n.status ? " · " + esc(n.status) : ""}</span></div>`;
+  const ORT_LABELS = [
+    ["befindet_sich", "Hier ansässig"],
+    ["stammt_von",    "Stammt von hier"],
+    ["wirkt_in",      "Wirkt hier"],
+    ["versteckt_auf", "Versteckt sich hier"],
+  ];
+  const gruppen = (L.nscs_nach_ort) || {};
+  let nscHtml = head("NSCs", U.nscNeu(w.id), "+ NSC");
+  const teile = ORT_LABELS
+    .filter(([key]) => gruppen[key] && gruppen[key].length)
+    .map(([key, label]) =>
+      `<div class="ort-gruppe"><div class="ort-gruppe__label">${label}</div>`
+      + gruppen[key].map(nscRow).join("") + `</div>`);
+  nscHtml += teile.length ? teile.join("") : empty;
 
   let aufHtml = head("Aufträge", U.auftragNeu(w.id), "+ Auftrag");
   aufHtml += (L.auftraege && L.auftraege.length) ? L.auftraege.map(a =>

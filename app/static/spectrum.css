@@ -525,6 +525,13 @@ textarea.inp { resize: vertical; line-height: 1.5; font-family: var(--font-mono)
   background: none; border: none; color: var(--error, #ff4d4d);
   font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0 4px;
 }
+
+/* Hexkarte: NSC-Gruppen nach Orts-Relation */
+.ort-gruppe { margin-bottom: 8px; }
+.ort-gruppe__label {
+  font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--on-surface-variant); margin: 4px 0 2px;
+}
 .status-sel {
   background: var(--surface-container); color: var(--on-surface-variant);
   border: none; border-radius: var(--radius-pill); padding: 2px 8px;
