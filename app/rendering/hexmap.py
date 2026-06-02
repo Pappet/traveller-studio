@@ -125,7 +125,7 @@ def render_svg(welten, ss_index: int, routen=None) -> str:
                 zentren[hexcode] = (cx, cy)
             zone = _g(w, "reisezone") if w else "gruen"
             cls = {"amber": "hex-amber", "rot": "hex-red"}.get(zone, "hex")
-            cellcls = " cell" if w else ""
+            cellcls = " cell" if w else " cell-empty"   # leerer Hex: anklickbar -> Welt setzen
             out.append(f'<polygon class="{cls}{cellcls}" data-hex="{hexcode}" points="{_hex_points(cx, cy)}"/>')
             out.append(f'<text class="coord" x="{cx:.1f}" y="{cy - H/2 + 12:.1f}">{hexcode}</text>')
 

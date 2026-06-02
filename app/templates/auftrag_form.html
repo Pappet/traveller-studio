@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ "Auftrag bearbeiten" if modus == "bearbeiten" else "Auftrag anlegen" }} · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">ÜBERSICHT</a> / <a href="{{ zurueck_url }}">{{ kontext.name }}</a> / AUFTRAG</div>
+  <h1 class="form-title">{{ "Auftrag bearbeiten" if modus == "bearbeiten" else "Neuer Auftrag" }}</h1>
+  <div class="form-sub">PATRON-AUFHÄNGER · 6×6-TABELLEN</div>
+
+  <form method="post" action="{{ action }}">
+    {% if modus == "neu" %}
+    <div class="form-card">
+      <div class="sec-label">Würfeln</div>
+      <div class="grid2">
+        <div class="field"><label for="seed">Seed (optional)</label>
+          <input class="inp" id="seed" name="seed" placeholder="leer = zufällig"></div>
+        <div class="field" style="justify-content:flex-end">
+          <button class="btn btn--ghost" type="submit" name="aktion" value="generieren">⟳ NEU WÜRFELN</button>
+        </div>
+      </div>
+      <p class="hint">Würfeln erzeugt einen neuen Aufhänger (ungespeichert). Alle Felder sind danach editierbar.</p>
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+      <div class="sec-label">Auftrag</div>
+      <div class="grid2">
+        <div class="field"><label for="titel">Titel</label>
+          <input class="inp" id="titel" name="titel" value="{{ auftrag.titel }}" required></div>
+        <div class="field"><label for="typ">Typ</label>
+          <select class="inp" id="typ" name="typ">
+            <option value="">—</option>
+            {% for t in ZIEL_KAT %}<option value="{{ t }}" {{ "selected" if auftrag.typ == t }}>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="komplikation">Komplikation</label>
+          <input class="inp" id="komplikation" name="komplikation" value="{{ auftrag.komplikation or '' }}"></div>
+        <div class="field"><label for="wendung">Wendung</label>
+          <input class="inp" id="wendung" name="wendung" value="{{ auftrag.wendung or '' }}"></div>
+      </div>
+      <div class="field"><label for="belohnung">Belohnung</label>
+        <input class="inp" id="belohnung" name="belohnung" value="{{ auftrag.belohnung or '' }}"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="sec-label">Verknüpfungen</div>
+      <div class="grid2">
+        <div class="field"><label for="patron_nsc_id">Patron (NSC dieser Welt)</label>
+          <select class="inp" id="patron_nsc_id" name="patron_nsc_id">
+            <option value="">— keiner —</option>
+            {% for n in nscs %}<option value="{{ n.id }}" {{ "selected" if auftrag.patron_nsc_id == n.id }}>{{ n.name }}{% if n.rolle %} ({{ n.rolle }}){% endif %}</option>{% endfor %}
+          </select>
+          {% if not nscs %}<p class="hint">Noch keine NSCs auf dieser Welt — lege erst einen NSC an.</p>{% endif %}
+        </div>
+        <div class="field"><label for="fraktion_id">Fraktion</label>
+          <select class="inp" id="fraktion_id" name="fraktion_id">
+            <option value="">— keine —</option>
+            {% for f in fraktionen %}<option value="{{ f.id }}" {{ "selected" if auftrag.fraktion_id == f.id }}>{{ f.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="status">Status</label>
+        <select class="inp" id="status" name="status" style="max-width:240px">
+          {% for s in STATUS %}<option value="{{ s }}" {{ "selected" if auftrag.status == s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="field"><label for="notizen">Notizen</label>
+        <textarea class="inp" id="notizen" name="notizen" rows="4">{{ auftrag.notizen or "" }}</textarea>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn--primary" type="submit" name="aktion" value="speichern">SPEICHERN</button>
+        <a class="btn btn--ghost" href="{{ zurueck_url }}">ABBRECHEN</a>
+      </div>
+    </div>
+  </form>
+
+  {% if modus == "bearbeiten" %}
+  <form method="post" action="{{ url_for('auftrag.auftrag_loeschen', auftrag_id=auftrag.id) }}"
+        onsubmit="return confirm('Diesen Auftrag wirklich löschen?');">
+    <button class="btn btn--danger btn--sm" type="submit">AUFTRAG LÖSCHEN</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

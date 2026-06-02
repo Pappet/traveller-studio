@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ welt.name }} bearbeiten · Traveller Studio{% endblock %}
+
+{% set LABELS = {"groesse":"Größe","atmosphaere":"Atmosphäre","hydrographie":"Hydrographie",
+                 "bevoelkerung":"Bevölkerung","regierung":"Regierung","gesetz":"Gesetz","techlevel":"Tech-Level"} %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">ÜBERSICHT</a> / <a href="{{ zurueck_url }}">SUBSEKTOR</a> / WELT {{ welt.hex }}</div>
+  <h1 class="form-title">{{ welt.name }}</h1>
+  <div class="form-sub">AKTUELL <span class="readonly-uwp">{{ welt.uwp }}</span>
+    {% if welt.handelscodes %}&nbsp;&nbsp;{% for c in welt.handelscodes %}<span class="badge badge--code">{{ c }}</span> {% endfor %}{% endif %}
+  </div>
+
+  <form method="post" action="{{ action }}">
+    <div class="form-card">
+      <div class="sec-label">Allgemein</div>
+      <div class="grid2">
+        <div class="field"><label for="name">Name</label>
+          <input class="inp" id="name" name="name" value="{{ welt.name }}" required></div>
+        <div class="field"><label for="zugehoerigkeit">Zugehörigkeit (Allegiance)</label>
+          <input class="inp" id="zugehoerigkeit" name="zugehoerigkeit" value="{{ welt.zugehoerigkeit or '' }}"
+                 placeholder="z. B. Im / Va / As"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="raumhafen">Raumhafen</label>
+          <select class="inp" id="raumhafen" name="raumhafen">
+            {% for rh in RAUMHAEFEN %}<option value="{{ rh }}" {{ "selected" if welt.raumhafen == rh }}>{{ rh }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label for="temperatur">Temperatur</label>
+          <select class="inp" id="temperatur" name="temperatur">
+            {% for t in TEMPERATUREN %}<option value="{{ t }}" {{ "selected" if welt.temperatur == t }}>{{ t }}</option>{% endfor %}
+          </select></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="sec-label">UWP-Komponenten (eHex wird automatisch gebildet)</div>
+      <div class="eig-grid" style="grid-template-columns:repeat(7,1fr)">
+        {% for k in KOMPONENTEN %}
+        <div class="eig-cell">
+          <label for="k_{{ k }}">{{ LABELS[k] }}</label>
+          <input id="k_{{ k }}" name="{{ k }}" type="number" min="0" max="33" value="{{ welt[k] }}">
+        </div>
+        {% endfor %}
+      </div>
+      <p class="hint">UWP-String und Handelscodes werden beim Speichern aus diesen Werten neu berechnet.</p>
+    </div>
+
+    <div class="form-card">
+      <div class="sec-label">Karten-Signale</div>
+      <div class="grid2">
+        <div class="field"><label for="reisezone">Reisezone (manueller Override)</label>
+          <select class="inp" id="reisezone" name="reisezone">
+            <option value="gruen" {{ "selected" if welt.reisezone == "gruen" }}>grün — ruhig</option>
+            <option value="amber" {{ "selected" if welt.reisezone == "amber" }}>amber — Vorsicht</option>
+            <option value="rot"   {{ "selected" if welt.reisezone == "rot" }}>rot — interdiziert</option>
+          </select></div>
+        <div class="field"><span>Gasriese</span>
+          <label class="assign-row" style="padding-left:0">
+            <input type="checkbox" name="gasriesen" {{ "checked" if welt.gasriesen }}>
+            <span class="ar-name">Gasriese im System vorhanden</span>
+          </label></div>
+      </div>
+      <div class="field"><label for="notizen">Notizen</label>
+        <textarea class="inp" id="notizen" name="notizen" rows="3">{{ welt.notizen or "" }}</textarea></div>
+      <div class="toolbar">
+        <button class="btn btn--primary" type="submit">SPEICHERN</button>
+        <a class="btn btn--ghost" href="{{ zurueck_url }}">ABBRECHEN</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="form-card">
+    <div class="sec-label">Aktionen</div>
+    <div class="toolbar">
+      <form method="post" action="{{ url_for('welt.welt_neuwuerfeln', welt_id=welt.id) }}"
+            onsubmit="return confirm('Welt mit neuem Sub-Seed neu würfeln? Die UWP-Werte werden ersetzt (NSCs/Auträge/Fraktionen bleiben verknüpft).');">
+        <button class="btn btn--ghost" type="submit">⟳ NEU WÜRFELN</button>
+      </form>
+      <span class="spacer"></span>
+      <form method="post" action="{{ url_for('welt.welt_loeschen', welt_id=welt.id) }}"
+            onsubmit="return confirm('Diese Welt (mit allen NSCs/Aufträgen) wirklich löschen?');">
+        <button class="btn btn--danger" type="submit">WELT LÖSCHEN</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

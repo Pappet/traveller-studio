@@ -9,7 +9,12 @@
 {% block subheader %}
 <div class="section-strip">
   <span class="slot slot--left">SEKTOR // {{ sektor_name }}</span>
-  <span class="slot slot--center"><span class="pulse"></span><b>SUBSEKTOR {{ letter }}</b></span>
+  <span class="slot slot--center"><span class="pulse"></span>
+    <form class="ss-rename" method="post" action="{{ rename_url }}">
+      <b>SUBSEKTOR {{ letter }}</b>
+      <input name="name" value="{{ ss_name }}" placeholder="benennen…" aria-label="Subsektor-Name">
+    </form>
+  </span>
   <span class="slot slot--right">{{ n }} WELTEN&nbsp;&nbsp;{{ n_amber }} AMBER&nbsp;&nbsp;{{ n_rot }} ROT</span>
 </div>
 <nav class="subnav" aria-label="Subsektor-Navigation">
@@ -36,7 +41,7 @@
     <span class="leg"><span class="line-komm"></span>KOMMUNIKATION</span>
     <span class="leg"><span class="line-handel"></span>HANDEL</span>
     <span class="leg"><span class="mono">M</span>MARINE <span class="mono">S</span>SCOUT <span class="mono">F</span>FORSCHUNG <span class="mono">T</span>TAS <span class="mono">K</span>KONSULAT <span class="mono">P</span>PIRATEN</span>
-    <span class="leg" style="color:var(--primary)">↳ HEX ANKLICKEN FÜR DETAILS</span>
+    <span class="leg" style="color:var(--primary)">↳ WELT ANKLICKEN FÜR DETAILS · LEEREN HEX FÜR NEUE WELT</span>
   </div>
   <div class="mapcard">{{ svg | safe }}</div>
 </div>
@@ -58,6 +63,21 @@
 <script>
 const WELTEN = {{ welten_data | tojson }};
 const LINKS  = {{ links | tojson }};
+const WELT_NEU_BASE = {{ welt_neu_base | tojson }};
+
+// Pfad-Helfer (entsprechen den Blueprint-Routen ohne url_prefix)
+const U = {
+  nscNeu:      id => `/welt/${id}/nsc/neu`,
+  auftragNeu:  id => `/welt/${id}/auftrag/neu`,
+  fraktionNeu: id => `/welt/${id}/fraktion/neu`,
+  weltEdit:    id => `/welt/${id}/bearbeiten`,
+  weltReroll:  id => `/welt/${id}/neuwuerfeln`,
+  nscEdit:     id => `/nsc/${id}`,
+  auftragEdit: id => `/auftrag/${id}`,
+  auftragStatus: id => `/auftrag/${id}/status`,
+  fraktionEdit: id => `/fraktion/${id}`,
+};
+const AUFTRAG_STATUS = ["offen", "aktiv", "abgeschlossen", "gescheitert"];
 
 const RAUMHAFEN = {A:"Erstklassig — Treibstoff, Werft, Schiffsbau",B:"Gut — Treibstoff, Werft",
   C:"Routine — Treibstoff, begrenzte Reparatur",D:"Einfach — unraffinierter Treibstoff",
@@ -128,7 +148,8 @@ function openHex(hex) {
   b += `<span class="badge ${z[1]}">${z[0]}</span>`;
   document.getElementById("d-badges").innerHTML = b;
 
-  document.getElementById("d-links").innerHTML = renderExtras(w) + renderLinks(LINKS[hex]);
+  document.getElementById("d-links").innerHTML =
+    renderWeltAktionen(w) + renderExtras(w) + renderLinks(LINKS[hex], w);
 
   pin(hex);
   scrim.classList.add("open");
@@ -164,23 +185,44 @@ function renderExtras(w) {
   return sp + ku;
 }
 
-function renderLinks(L) {
+function renderWeltAktionen(w) {
+  return `<div class="sec-head"><div class="sec-label">Welt</div><span class="link-row__act">`
+    + `<a class="add-link" href="${U.weltEdit(w.id)}">✎ Bearbeiten</a>`
+    + `<form method="post" action="${U.weltReroll(w.id)}" style="display:inline" `
+    + `onsubmit="return confirm('Welt mit neuem Sub-Seed neu würfeln?');">`
+    + `<button class="add-link" type="submit">⟳ Neu würfeln</button></form></span></div>`;
+}
+
+function statusSelect(a) {
+  const opts = AUFTRAG_STATUS.map(s =>
+    `<option value="${s}" ${s === a.status ? "selected" : ""}>${s}</option>`).join("");
+  return `<form method="post" action="${U.auftragStatus(a.id)}" style="display:inline">`
+    + `<select name="status" class="status-sel" onchange="this.form.submit()">${opts}</select></form>`;
+}
+
+function renderLinks(L, w) {
   L = L || {};
-  const sect = (label, items, fmt) => {
-    let h = `<div class="sec-label">${label}</div>`;
-    if (!items || !items.length) return h + `<div class="empty-detail">— keine —</div>`;
-    return h + items.map(fmt).join("");
-  };
-  const nscHtml = sect("NSCs", L.nscs, n =>
-    `<div class="link-row"><span class="link-row__name">${esc(n.name)}`
+  const head = (label, addUrl, addText) =>
+    `<div class="sec-head"><div class="sec-label">${label}</div>`
+    + `<a class="add-link" href="${addUrl}">${addText}</a></div>`;
+  const empty = `<div class="empty-detail">— keine —</div>`;
+
+  let nscHtml = head("NSCs", U.nscNeu(w.id), "+ NSC");
+  nscHtml += (L.nscs && L.nscs.length) ? L.nscs.map(n =>
+    `<div class="link-row"><a class="link-row__name" href="${U.nscEdit(n.id)}">${esc(n.name)}`
     + (n.geheim ? ` <span class="badge badge--secret">geheim</span>` : ``)
-    + `</span><span class="link-row__meta">${esc(n.rolle || "")} · ${esc(n.status || "")}</span></div>`);
-  const aufHtml = sect("Aufträge", L.auftraege, a =>
-    `<div class="link-row"><span class="link-row__name">${esc(a.titel)}</span>`
-    + `<span class="link-row__meta">${esc(a.status || "")}</span></div>`);
-  const fraHtml = sect("Fraktionen", L.fraktionen, f =>
-    `<div class="link-row"><span class="link-row__name">${esc(f.name)}</span>`
-    + `<span class="link-row__meta">${esc(f.typ || "")}${f.staerke ? " · " + esc(f.staerke) : ""}</span></div>`);
+    + `</a><span class="link-row__meta">${esc(n.rolle || "")} · ${esc(n.status || "")}</span></div>`).join("") : empty;
+
+  let aufHtml = head("Aufträge", U.auftragNeu(w.id), "+ Auftrag");
+  aufHtml += (L.auftraege && L.auftraege.length) ? L.auftraege.map(a =>
+    `<div class="link-row"><a class="link-row__name" href="${U.auftragEdit(a.id)}">${esc(a.titel)}</a>`
+    + `<span class="link-row__meta">${statusSelect(a)}</span></div>`).join("") : empty;
+
+  let fraHtml = head("Fraktionen", U.fraktionNeu(w.id), "+ Fraktion");
+  fraHtml += (L.fraktionen && L.fraktionen.length) ? L.fraktionen.map(f =>
+    `<div class="link-row"><a class="link-row__name" href="${U.fraktionEdit(f.id)}">${esc(f.name)}</a>`
+    + `<span class="link-row__meta">${esc(f.typ || "")}${f.staerke ? " · " + esc(f.staerke) : ""}</span></div>`).join("") : empty;
+
   return nscHtml + aufHtml + fraHtml;
 }
 
@@ -200,7 +242,10 @@ function closeDetail() {
 
 svg.addEventListener("click", e => {
   const poly = e.target.closest("polygon[data-hex]");
-  if (poly && WELTEN[poly.getAttribute("data-hex")]) openHex(poly.getAttribute("data-hex"));
+  if (!poly) return;
+  const hex = poly.getAttribute("data-hex");
+  if (WELTEN[hex]) openHex(hex);
+  else if (poly.classList.contains("cell-empty")) window.location = `${WELT_NEU_BASE}?hex=${hex}`;
 });
 document.getElementById("d-close").addEventListener("click", closeDetail);
 scrim.addEventListener("click", closeDetail);

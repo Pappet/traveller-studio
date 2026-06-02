@@ -23,7 +23,9 @@ def _zufallsseed(n: int = 8) -> str:
 
 
 def _welt_dict(w) -> dict:
-    return {k: _g(w, k) for k in _FELDER}
+    d = {k: _g(w, k) for k in _FELDER}
+    d["id"] = _g(w, "id")
+    return d
 
 
 @bp.post("/generieren")
@@ -59,6 +61,7 @@ def subsektor_ansicht(sektor_id: int, ss_index: int):
         sektor_id=sektor_id,
         letter=letter,
         ss_index=ss_index,
+        ss_name=persist.subsektor_name(db, sektor_id, ss_index) or "",
         n=len(welten),
         n_amber=sum(1 for w in welten if _g(w, "reisezone") == "amber"),
         n_rot=sum(1 for w in welten if _g(w, "reisezone") == "rot"),
@@ -67,6 +70,8 @@ def subsektor_ansicht(sektor_id: int, ss_index: int):
         vorhanden=vorhanden,
         home_url=url_for("main.index"),
         export_url=url_for("sektor.export_uwp", sektor_id=sektor_id, ss_index=ss_index),
+        rename_url=url_for("welt.subsektor_benennen", sektor_id=sektor_id, ss_index=ss_index),
+        welt_neu_base=url_for("welt.welt_neu", sektor_id=sektor_id, ss_index=ss_index),
     )
 
 

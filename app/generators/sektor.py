@@ -202,6 +202,33 @@ def gen_name(rng: random.Random) -> str:
     return name
 
 # =====================================================================
+#  Abgeleitete Werte aus UWP-Komponenten (eine Quelle fuer Generator +
+#  Welt-Editor -- so bleibt die Regel-Logik an genau einer Stelle).
+# =====================================================================
+def baue_uwp(raumhafen: str, groesse: int, atmosphaere: int, hydrographie: int,
+             bevoelkerung: int, regierung: int, gesetz: int, techlevel: int) -> str:
+    return (raumhafen
+            + to_ehex(groesse) + to_ehex(atmosphaere) + to_ehex(hydrographie)
+            + to_ehex(bevoelkerung) + to_ehex(regierung) + to_ehex(gesetz)
+            + "-" + to_ehex(techlevel))
+
+
+def berechne_handelscodes(groesse: int, atmosphaere: int, hydrographie: int,
+                          bevoelkerung: int, regierung: int, gesetz: int,
+                          techlevel: int) -> list[str]:
+    werte = dict(groesse=groesse, atmo=atmosphaere, hydro=hydrographie,
+                 bev=bevoelkerung, reg=regierung, gesetz=gesetz, tl=techlevel)
+    return [code for code, pred in TRADE_CODES if pred(werte)]
+
+
+def bestimme_reisezone(atmosphaere: int, regierung: int, gesetz: int) -> str:
+    # Rot: insidiöse Atmosphäre (C = 12+).  Amber: exotisch/korrosiv (A-B),
+    # Balkanisierung (Reg 7) oder extremes Gesetz (C+ = 12+).  (Siehe erzeuge_welt.)
+    rot = (atmosphaere >= 12)
+    amber = not rot and ((atmosphaere >= 10) or (regierung == 7) or (gesetz >= 12))
+    return "rot" if rot else ("amber" if amber else "gruen")
+
+# =====================================================================
 #  Eine Welt erzeugen
 # =====================================================================
 @dataclass
@@ -328,25 +355,12 @@ def erzeuge_welt(seed: str, hexcode: str, *, zugehoerigkeit: str | None = "Im") 
         rolls["kultur"] = None
         kultur = None
 
-    # --- Werte fuer Trade-Codes buendeln -------------------------------
-    werte = dict(groesse=groesse, atmo=atmo, hydro=hydro, bev=bev,
-                 reg=reg, gesetz=gesetz, tl=tl)
-    handelscodes = [code for code, pred in TRADE_CODES if pred(werte)]
-
-    # --- Reisezone ---------------------------------------------------------
-    # Rot: insidiöse Atmosphäre (C = 12+) – Schutzanzüge versagen langfristig
-    rot = (atmo >= 12)
-    # Amber: exotische/korrosive Atm (A-B), Balkanisierung (Reg 7), extremes Gesetz (C+ = 12+)
-    # Reg 0 (Anarchie) und Reg 10 (Charismatischer Diktator) sind kein kanonischer Amber-Grund;
-    # Gesetz 9-11 ist restriktiv aber nicht reisegefährlich.
-    amber = not rot and ((atmo >= 10) or (reg == 7) or (gesetz >= 12))
-    reisezone = "rot" if rot else ("amber" if amber else "gruen")
-
-    # --- UWP-String ----------------------------------------------------
-    uwp = (raumhafen
-           + to_ehex(groesse) + to_ehex(atmo) + to_ehex(hydro)
-           + to_ehex(bev) + to_ehex(reg) + to_ehex(gesetz)
-           + "-" + to_ehex(tl))
+    # --- Abgeleitete Werte (Handelscodes / Reisezone / UWP) ------------
+    # Reg 0 (Anarchie) und Reg 10 (Charismatischer Diktator) sind kein kanonischer
+    # Amber-Grund; Gesetz 9-11 ist restriktiv, aber nicht reisegefährlich.
+    handelscodes = berechne_handelscodes(groesse, atmo, hydro, bev, reg, gesetz, tl)
+    reisezone = bestimme_reisezone(atmo, reg, gesetz)
+    uwp = baue_uwp(raumhafen, groesse, atmo, hydro, bev, reg, gesetz, tl)
 
     name = gen_name(rng)
 

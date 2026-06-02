@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ "Fraktion bearbeiten" if modus == "bearbeiten" else "Fraktion anlegen" }} · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">ÜBERSICHT</a> / <a href="{{ zurueck_url }}">{{ kontext.name }}</a> / FRAKTION</div>
+  <h1 class="form-title">{{ "Fraktion bearbeiten" if modus == "bearbeiten" else "Neue Fraktion" }}</h1>
+  <div class="form-sub">
+    {% if staerke %}<span class="badge badge--mut">STÄRKE · {{ staerke }}</span>{% endif %}
+  </div>
+
+  <form method="post" action="{{ action }}">
+    <div class="form-card">
+      <div class="sec-label">Stammdaten</div>
+      <div class="grid2">
+        <div class="field"><label for="name">Name</label>
+          <input class="inp" id="name" name="name" value="{{ fraktion.name }}" required></div>
+        <div class="field"><label for="typ">Typ / Art</label>
+          <input class="inp" id="typ" name="typ" value="{{ fraktion.typ or '' }}"
+                 placeholder="Splittergruppe, Konzern, Kult …"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="reichweite">Reichweite</label>
+          <select class="inp" id="reichweite" name="reichweite">
+            {% for r in REICHWEITE %}<option value="{{ r }}" {{ "selected" if fraktion.reichweite == r }}>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="einfluss">Einfluss (1–12, Stärketabelle)</label>
+          <input class="inp" id="einfluss" name="einfluss" type="number" min="1" max="12"
+                 value="{{ fraktion.einfluss if fraktion.einfluss is not none else '' }}"></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="field"><label for="ziele">Ziele</label>
+        <textarea class="inp" id="ziele" name="ziele" rows="3">{{ fraktion.ziele or "" }}</textarea></div>
+      <div class="field"><label for="notizen">Notizen</label>
+        <textarea class="inp" id="notizen" name="notizen" rows="3">{{ fraktion.notizen or "" }}</textarea></div>
+      <div class="toolbar">
+        <button class="btn btn--primary" type="submit">SPEICHERN</button>
+        <a class="btn btn--ghost" href="{{ zurueck_url }}">ABBRECHEN</a>
+      </div>
+    </div>
+  </form>
+
+  {% if modus == "bearbeiten" %}
+  <div class="form-card">
+    <div class="sec-label">Mitglieder (NSCs)</div>
+    {% if mitglieder %}
+      {% for m in mitglieder %}
+      <div class="link-row">
+        <a class="link-row__name" href="{{ url_for('nsc.nsc_bearbeiten', nsc_id=m.id) }}">{{ m.name }}</a>
+        <span class="link-row__meta">{{ m.rolle or "" }}{% if m.geheim %} · <span style="color:var(--error)">geheim</span>{% endif %}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-detail">— keine zugeordnet — (NSCs werden im NSC-Formular zugeordnet)</div>
+    {% endif %}
+  </div>
+
+  <form method="post" action="{{ url_for('fraktion.fraktion_loeschen', fraktion_id=fraktion.id) }}"
+        onsubmit="return confirm('Diese Fraktion wirklich löschen?');">
+    <button class="btn btn--danger btn--sm" type="submit">FRAKTION LÖSCHEN</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

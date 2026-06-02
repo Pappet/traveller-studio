@@ -16,9 +16,11 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from .generators.sektor import erzeuge_sektor, welt_zu_row
+from .generators.sektor import (erzeuge_sektor, erzeuge_welt, welt_zu_row,
+                                 baue_uwp, berechne_handelscodes)
 from .generators.faktionen import erzeuge_fraktionen, fraktion_zu_row, _staerke
 from .generators.routen import gen_alle_routen
+from .generators.nsc import nsc_zu_row
 
 # JSON-Spalten der welt-Tabelle, die beim Laden geparst werden muessen
 _JSON_COLS = ("handelscodes", "basen", "raumhafen_details", "kultur",
@@ -129,27 +131,27 @@ def baue_links(db: sqlite3.Connection, welt_dicts: list[dict]) -> dict:
         eintrag: dict = {}
 
         nscs = db.execute(
-            "SELECT id, name, rolle, status FROM nsc WHERE welt_id=?", (wid,)).fetchall()
+            "SELECT id, name, rolle, status FROM nsc WHERE welt_id=? ORDER BY id", (wid,)).fetchall()
         if nscs:
             liste = []
             for n in nscs:
                 geheim = db.execute(
                     "SELECT 1 FROM nsc_fraktion WHERE nsc_id=? AND geheim=1 LIMIT 1",
                     (n["id"],)).fetchone() is not None
-                liste.append({"name": n["name"], "rolle": n["rolle"],
+                liste.append({"id": n["id"], "name": n["name"], "rolle": n["rolle"],
                               "status": n["status"], "geheim": geheim})
             eintrag["nscs"] = liste
 
         auf = db.execute(
-            "SELECT titel, status FROM auftrag WHERE welt_id=?", (wid,)).fetchall()
+            "SELECT id, titel, typ, status FROM auftrag WHERE welt_id=? ORDER BY id", (wid,)).fetchall()
         if auf:
             eintrag["auftraege"] = [dict(a) for a in auf]
 
         fra = db.execute(
-            "SELECT name, typ, einfluss FROM fraktion WHERE heimatwelt_id=?", (wid,)).fetchall()
+            "SELECT id, name, typ, einfluss FROM fraktion WHERE heimatwelt_id=? ORDER BY id", (wid,)).fetchall()
         if fra:
             eintrag["fraktionen"] = [
-                {"name": f["name"], "typ": f["typ"],
+                {"id": f["id"], "name": f["name"], "typ": f["typ"],
                  "staerke": _staerke(f["einfluss"])[0] if f["einfluss"] is not None else ""}
                 for f in fra
             ]
@@ -172,6 +174,12 @@ def lade_routen(db: sqlite3.Connection, sektor_id: int) -> list[dict]:
         if a and b:
             out.append({"a": a, "b": b, "typ": r["typ"], "jump": r["jump_distanz"]})
     return out
+
+
+def subsektor_name(db: sqlite3.Connection, sektor_id: int, ss_index: int) -> str | None:
+    r = db.execute("SELECT name FROM subsektor WHERE sektor_id=? AND idx=?",
+                   (sektor_id, ss_index)).fetchone()
+    return r["name"] if r else None
 
 
 def subsektoren_mit_welten(db: sqlite3.Connection, sektor_id: int) -> set[int]:
@@ -197,3 +205,293 @@ def export_uwp(db: sqlite3.Connection, sektor_id: int, ss_index: int) -> str:
         gg = "G" if w.get("gasriesen") else " "
         zeilen.append(f'{w["hex"]}  {w["name"][:18]:<18} {w["uwp"]:<11} {basen:<2} {zone} {gg}  {codes}')
     return kopf + "\n".join(zeilen) + "\n"
+
+
+# =====================================================================
+#  Editier-Schicht (Prep-Werkzeuge)
+#  -------------------------------------------------------------------
+#  Gemeinsames Muster: kleine, fokussierte DB-Funktionen. SQL bleibt hier
+#  (nicht in den Blueprints), Generatoren bleiben rein. Spalten werden gegen
+#  Whitelists geschrieben (kein dynamisches SQL aus User-Schluesseln).
+# =====================================================================
+def _insert(db: sqlite3.Connection, tabelle: str, row: dict) -> int:
+    spalten = ", ".join(row.keys())
+    platzhalter = ", ".join("?" * len(row))
+    cur = db.execute(f"INSERT INTO {tabelle} ({spalten}) VALUES ({platzhalter})",
+                     list(row.values()))
+    db.commit()
+    return cur.lastrowid
+
+
+def _update(db: sqlite3.Connection, tabelle: str, row_id: int,
+            felder: dict, erlaubt: set[str]) -> None:
+    setz = {k: v for k, v in felder.items() if k in erlaubt}
+    if not setz:
+        return
+    zuweisung = ", ".join(f"{k}=?" for k in setz)
+    db.execute(f"UPDATE {tabelle} SET {zuweisung} WHERE id=?",
+               list(setz.values()) + [row_id])
+    db.commit()
+
+
+def welt_kontext(db: sqlite3.Connection, welt_id: int) -> dict | None:
+    """Liefert {welt_id, sektor_id, ss_index, hex, name} fuer Redirects/Forms."""
+    r = db.execute(
+        "SELECT w.id, w.sektor_id, w.hex, w.name, s.idx AS ss_index "
+        "FROM welt w LEFT JOIN subsektor s ON w.subsektor_id=s.id WHERE w.id=?",
+        (welt_id,)).fetchone()
+    return dict(r) if r else None
+
+
+def lade_welt(db: sqlite3.Connection, welt_id: int) -> dict | None:
+    r = db.execute("SELECT * FROM welt WHERE id=?", (welt_id,)).fetchone()
+    return _hydrate(r) if r else None
+
+
+def welt_nscs(db: sqlite3.Connection, welt_id: int) -> list[dict]:
+    """NSCs einer Welt (fuer Patron-Auswahl im Auftrags-Formular)."""
+    rows = db.execute("SELECT id, name, rolle FROM nsc WHERE welt_id=? ORDER BY name",
+                      (welt_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def sektor_fraktionen(db: sqlite3.Connection, sektor_id: int) -> list[dict]:
+    """Alle Fraktionen eines Sektors (fuer NSC-Zuordnung + Card)."""
+    rows = db.execute(
+        "SELECT fr.id, fr.name, fr.typ FROM fraktion fr "
+        "JOIN welt w ON fr.heimatwelt_id=w.id WHERE w.sektor_id=? ORDER BY fr.name",
+        (sektor_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------
+#  NSC
+# ---------------------------------------------------------------------
+_NSC_JSON = ("eigenschaften", "skills", "laufbahn", "ausruestung", "wuerfe")
+_NSC_EDIT = {"name", "rolle", "beschreibung", "notizen", "status", "getroffen", "welt_id"}
+
+
+def _hydrate_nsc(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    for c in _NSC_JSON:
+        if d.get(c):
+            try:
+                d[c] = json.loads(d[c])
+            except (ValueError, TypeError):
+                pass
+    return d
+
+
+def speichere_nsc(db: sqlite3.Connection, welt_id: int | None, nsc: dict) -> int:
+    """Schreibt ein NSC-dict (aus erzeuge_nsc oder Formular) in die nsc-Tabelle."""
+    return _insert(db, "nsc", nsc_zu_row(nsc, welt_id))
+
+
+def lade_nsc(db: sqlite3.Connection, nsc_id: int) -> dict | None:
+    r = db.execute("SELECT * FROM nsc WHERE id=?", (nsc_id,)).fetchone()
+    return _hydrate_nsc(r) if r else None
+
+
+def aktualisiere_nsc(db: sqlite3.Connection, nsc_id: int, felder: dict) -> None:
+    _update(db, "nsc", nsc_id, felder, _NSC_EDIT)
+
+
+def loesche_nsc(db: sqlite3.Connection, nsc_id: int) -> None:
+    db.execute("DELETE FROM nsc WHERE id=?", (nsc_id,))
+    db.commit()
+
+
+def lade_nsc_fraktionen(db: sqlite3.Connection, nsc_id: int) -> dict[int, dict]:
+    """fraktion_id -> {geheim, rolle} fuer die aktuellen Zuordnungen eines NSC."""
+    rows = db.execute(
+        "SELECT fraktion_id, geheim, rolle FROM nsc_fraktion WHERE nsc_id=?",
+        (nsc_id,)).fetchall()
+    return {r["fraktion_id"]: {"geheim": r["geheim"], "rolle": r["rolle"]} for r in rows}
+
+
+def setze_nsc_fraktionen(db: sqlite3.Connection, nsc_id: int,
+                         eintraege: list[dict]) -> None:
+    """Ersetzt die Fraktions-Zuordnungen eines NSC (eintraege: {fraktion_id, geheim, rolle})."""
+    db.execute("DELETE FROM nsc_fraktion WHERE nsc_id=?", (nsc_id,))
+    for e in eintraege:
+        db.execute(
+            "INSERT OR IGNORE INTO nsc_fraktion(nsc_id, fraktion_id, geheim, rolle) "
+            "VALUES (?, ?, ?, ?)",
+            (nsc_id, e["fraktion_id"], 1 if e.get("geheim") else 0, e.get("rolle")))
+    db.commit()
+
+
+# ---------------------------------------------------------------------
+#  Auftrag
+# ---------------------------------------------------------------------
+_AUFTRAG_EDIT = {"titel", "typ", "belohnung", "komplikation", "wendung",
+                 "notizen", "status", "patron_nsc_id", "welt_id", "fraktion_id"}
+_AUFTRAG_STATUS = {"offen", "aktiv", "abgeschlossen", "gescheitert"}
+
+
+def speichere_auftrag(db: sqlite3.Connection, row: dict) -> int:
+    return _insert(db, "auftrag", row)
+
+
+def lade_auftrag(db: sqlite3.Connection, auftrag_id: int) -> dict | None:
+    r = db.execute("SELECT * FROM auftrag WHERE id=?", (auftrag_id,)).fetchone()
+    return dict(r) if r else None
+
+
+def aktualisiere_auftrag(db: sqlite3.Connection, auftrag_id: int, felder: dict) -> None:
+    _update(db, "auftrag", auftrag_id, felder, _AUFTRAG_EDIT)
+
+
+def setze_auftrag_status(db: sqlite3.Connection, auftrag_id: int, status: str) -> bool:
+    if status not in _AUFTRAG_STATUS:
+        return False
+    db.execute("UPDATE auftrag SET status=? WHERE id=?", (status, auftrag_id))
+    db.commit()
+    return True
+
+
+def loesche_auftrag(db: sqlite3.Connection, auftrag_id: int) -> None:
+    db.execute("DELETE FROM auftrag WHERE id=?", (auftrag_id,))
+    db.commit()
+
+
+def welt_id_des_auftrags(db: sqlite3.Connection, auftrag_id: int) -> int | None:
+    r = db.execute("SELECT welt_id FROM auftrag WHERE id=?", (auftrag_id,)).fetchone()
+    return r["welt_id"] if r else None
+
+
+# ---------------------------------------------------------------------
+#  Fraktion
+# ---------------------------------------------------------------------
+_FRAKTION_EDIT = {"name", "typ", "reichweite", "einfluss", "ziele", "notizen", "heimatwelt_id"}
+
+
+def lade_fraktion(db: sqlite3.Connection, fraktion_id: int) -> dict | None:
+    r = db.execute("SELECT * FROM fraktion WHERE id=?", (fraktion_id,)).fetchone()
+    return dict(r) if r else None
+
+
+def aktualisiere_fraktion(db: sqlite3.Connection, fraktion_id: int, felder: dict) -> None:
+    _update(db, "fraktion", fraktion_id, felder, _FRAKTION_EDIT)
+
+
+def speichere_fraktion(db: sqlite3.Connection, heimatwelt_id: int, felder: dict) -> int:
+    row = {"name": felder.get("name") or "Unbenannte Fraktion",
+           "typ": felder.get("typ"),
+           "reichweite": felder.get("reichweite") or "lokal",
+           "heimatwelt_id": heimatwelt_id,
+           "einfluss": felder.get("einfluss"),
+           "ziele": felder.get("ziele"),
+           "notizen": felder.get("notizen")}
+    return _insert(db, "fraktion", row)
+
+
+def loesche_fraktion(db: sqlite3.Connection, fraktion_id: int) -> None:
+    db.execute("DELETE FROM fraktion WHERE id=?", (fraktion_id,))
+    db.commit()
+
+
+def fraktion_mitglieder(db: sqlite3.Connection, fraktion_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT n.id, n.name, n.rolle, nf.geheim FROM nsc n "
+        "JOIN nsc_fraktion nf ON nf.nsc_id=n.id WHERE nf.fraktion_id=? ORDER BY n.name",
+        (fraktion_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------
+#  Welt-/Sektor-Editor
+# ---------------------------------------------------------------------
+# Direkt setzbare (nicht-abgeleitete) Spalten. uwp/handelscodes/reisezone werden
+# aus den Komponenten neu berechnet, NICHT direkt geschrieben.
+_WELT_KOMPONENTEN = ("groesse", "atmosphaere", "hydrographie", "bevoelkerung",
+                     "regierung", "gesetz", "techlevel")
+_WELT_DIREKT = {"name", "raumhafen", "zugehoerigkeit", "temperatur", "notizen"}
+
+
+def aktualisiere_welt(db: sqlite3.Connection, welt_id: int, felder: dict) -> None:
+    """Schreibt editierte Welt-Felder; uwp + Handelscodes werden neu berechnet.
+
+    Reisezone ist eine MANUELLE Override-Spalte (Roadmap: „Reisezone auf rot
+    setzen") und wird daher direkt aus `felder['reisezone']` uebernommen.
+    """
+    aktuell = db.execute("SELECT * FROM welt WHERE id=?", (welt_id,)).fetchone()
+    if not aktuell:
+        return
+    aktuell = dict(aktuell)
+
+    komp = {}
+    for k in _WELT_KOMPONENTEN:
+        v = felder.get(k, aktuell[k])
+        try:
+            komp[k] = max(0, int(v))            # leere/ungueltige Eingabe -> alter Wert
+        except (TypeError, ValueError):
+            komp[k] = aktuell[k] or 0
+
+    setz = {k: felder[k] for k in _WELT_DIREKT if k in felder}
+    if "gasriesen" in felder:
+        setz["gasriesen"] = 1 if str(felder["gasriesen"]) in ("1", "true", "on") else 0
+    if felder.get("reisezone") in ("gruen", "amber", "rot"):
+        setz["reisezone"] = felder["reisezone"]
+    setz.update(komp)
+
+    raumhafen = setz.get("raumhafen", aktuell["raumhafen"]) or "X"
+    setz["uwp"] = baue_uwp(raumhafen, komp["groesse"], komp["atmosphaere"],
+                           komp["hydrographie"], komp["bevoelkerung"],
+                           komp["regierung"], komp["gesetz"], komp["techlevel"])
+    setz["handelscodes"] = json.dumps(berechne_handelscodes(
+        komp["groesse"], komp["atmosphaere"], komp["hydrographie"],
+        komp["bevoelkerung"], komp["regierung"], komp["gesetz"], komp["techlevel"]))
+
+    erlaubt = _WELT_DIREKT | set(_WELT_KOMPONENTEN) | {"uwp", "handelscodes", "reisezone", "gasriesen"}
+    _update(db, "welt", welt_id, setz, erlaubt)
+
+
+def neuwuerfeln_welt(db: sqlite3.Connection, welt_id: int) -> None:
+    """Wuerfelt eine Welt mit NEUEM Sub-Seed neu (Nachbarn bleiben unberuehrt).
+
+    Die welt-id und der Hex bleiben erhalten; bestehende NSCs/Auftraege/Fraktionen
+    bleiben verknuepft (sie haengen an der id). Die UWP-Felder werden ersetzt.
+    """
+    ctx = db.execute("SELECT hex, seed, sektor_id, subsektor_id, zugehoerigkeit "
+                     "FROM welt WHERE id=?", (welt_id,)).fetchone()
+    if not ctx:
+        return
+    import secrets
+    basis = ctx["seed"] or f"manuell|{ctx['hex']}"
+    neuer_seed = f"{basis}|r{secrets.token_hex(3)}"
+    wlt = erzeuge_welt(neuer_seed, ctx["hex"], zugehoerigkeit=ctx["zugehoerigkeit"])
+    row = welt_zu_row(wlt, ctx["sektor_id"], ctx["subsektor_id"])
+    row.pop("hex", None)                                # Hex nicht aendern
+    zuweisung = ", ".join(f"{k}=?" for k in row)
+    db.execute(f"UPDATE welt SET {zuweisung} WHERE id=?", list(row.values()) + [welt_id])
+    db.commit()
+
+
+def erzeuge_welt_in_hex(db: sqlite3.Connection, sektor_id: int, ss_index: int,
+                        hexcode: str, seed: str | None = None) -> int | None:
+    """Setzt eine generierte Welt in einen (leeren) Hex. None, wenn Hex belegt."""
+    belegt = db.execute("SELECT 1 FROM welt WHERE sektor_id=? AND hex=?",
+                        (sektor_id, hexcode)).fetchone()
+    if belegt:
+        return None
+    sub = db.execute("SELECT id FROM subsektor WHERE sektor_id=? AND idx=?",
+                     (sektor_id, ss_index)).fetchone()
+    if not sub:
+        return None
+    sektor = db.execute("SELECT seed FROM sektor WHERE id=?", (sektor_id,)).fetchone()
+    welt_seed = seed or f"{(sektor['seed'] if sektor else 'manuell')}|{hexcode}"
+    wlt = erzeuge_welt(welt_seed, hexcode)
+    return _insert(db, "welt", welt_zu_row(wlt, sektor_id, sub["id"]))
+
+
+def loesche_welt(db: sqlite3.Connection, welt_id: int) -> None:
+    db.execute("DELETE FROM welt WHERE id=?", (welt_id,))
+    db.commit()
+
+
+def benenne_subsektor(db: sqlite3.Connection, sektor_id: int, ss_index: int,
+                      name: str) -> None:
+    db.execute("UPDATE subsektor SET name=? WHERE sektor_id=? AND idx=?",
+               (name or None, sektor_id, ss_index))
+    db.commit()

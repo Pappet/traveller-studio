@@ -256,6 +256,8 @@ body {
 /* Clickable Hex + Pin Ring */
 .cell         { cursor: pointer; }
 .cell:hover   { filter: brightness(1.5); }
+.cell-empty       { cursor: copy; }
+.cell-empty:hover { fill: var(--surface-container); }
 .pin-ring {
   stroke: var(--primary);
   stroke-width: 2.2;
@@ -376,3 +378,128 @@ body {
   .pin-ring { animation: none; }
   .detail, .scrim { transition: none; }
 }
+
+/* ================================================================
+   PREP-WERKZEUGE — Formulare (NSC / Auftrag / Fraktion / Welt)
+   Tonale Tiefe statt Linien; scharfe Panels, Pillen nur für State.
+   ================================================================ */
+.form-page { padding: 24px; max-width: 860px; margin: 0 auto; }
+.crumb {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+  margin-bottom: 14px;
+}
+.crumb a { color: var(--on-surface-variant); text-decoration: none; }
+.crumb a:hover { color: var(--primary); }
+.form-title { font-family: var(--font-disp); font-size: 1.7rem; font-weight: 600; margin: 0 0 4px; }
+.form-sub { font-family: var(--font-mono); font-size: .8rem; color: var(--on-surface-variant); margin-bottom: 20px; }
+
+.form-card {
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field > span, .field > label {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+.inp, textarea.inp, select.inp {
+  background: var(--surface-container);
+  color: var(--on-surface);
+  border: none;
+  border-radius: var(--radius-sm);
+  min-height: 40px;
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: .9rem;
+  width: 100%;
+}
+.inp::placeholder { color: var(--on-surface-variant); font-family: var(--font-mono); }
+.inp:focus { outline: none; box-shadow: 0 0 0 1px var(--primary), 0 0 8px rgba(166,255,0,.25); }
+textarea.inp { resize: vertical; line-height: 1.5; font-family: var(--font-mono); font-size: .85rem; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+@media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* Eigenschaften-Lockup (6 kleine Zahlenfelder) */
+.eig-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.eig-cell { display: flex; flex-direction: column; gap: 4px; }
+.eig-cell label {
+  font-family: var(--font-mono); font-size: .62rem; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--on-surface-variant); text-align: center;
+}
+.eig-cell input {
+  background: var(--surface-container); color: var(--on-surface); border: none;
+  border-radius: var(--radius-sm); height: 44px; text-align: center;
+  font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600;
+}
+.eig-cell input:focus { outline: none; box-shadow: 0 0 0 1px var(--primary); }
+.profil-lockup { font-family: var(--font-mono); font-size: 1.1rem; letter-spacing: .14em; color: var(--primary); }
+
+/* Fraktions-Zuordnung */
+.assign-row {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+.assign-row:nth-child(even) { background: var(--surface-container-lowest); }
+.assign-row .ar-name { flex: 1; font-size: .9rem; }
+.assign-row label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--on-surface-variant); cursor: pointer;
+}
+.assign-row input[type=checkbox] { accent-color: var(--primary); width: 15px; height: 15px; }
+
+/* Aktionsleiste */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+.toolbar .spacer { flex: 1; }
+.btn--danger { background: rgba(255,77,77,.14); color: var(--error); }
+.btn--danger:hover { background: rgba(255,77,77,.24); }
+
+.hint { font-size: .8rem; color: var(--on-surface-variant); line-height: 1.5; }
+.readonly-uwp { font-family: var(--font-mono); font-size: 1.3rem; letter-spacing: .08em; color: var(--on-surface); }
+
+/* Card: Erstell-/Edit-Verknüpfungen in der Detailkarte */
+.add-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--primary); text-decoration: none;
+  padding: 3px 0; cursor: pointer;
+}
+.add-link:hover { text-decoration: underline; }
+.link-row a.link-row__name { color: var(--on-surface); text-decoration: none; }
+.link-row a.link-row__name:hover { color: var(--primary); }
+.link-row__act { display: inline-flex; gap: 6px; }
+.icon-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 6px;
+  font-family: var(--font-mono); font-size: .68rem; color: var(--on-surface-variant);
+  border-radius: var(--radius-sm);
+}
+.icon-btn:hover { color: var(--on-surface); background: var(--surface-container); }
+.sec-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 8px; }
+.sec-head .sec-label { margin: 0; }
+.status-sel {
+  background: var(--surface-container); color: var(--on-surface-variant);
+  border: none; border-radius: var(--radius-pill); padding: 2px 8px;
+  font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
+  text-transform: uppercase; cursor: pointer;
+}
+.status-sel:focus { outline: none; box-shadow: 0 0 0 1px var(--primary); }
+
+/* Subsektor-Umbenennen (kompaktes Inline-Formular im Header) */
+.ss-rename { display: inline-flex; gap: 6px; align-items: center; }
+.ss-rename input {
+  background: var(--surface-container); color: var(--on-surface); border: none;
+  border-radius: var(--radius-sm); height: 28px; padding: 0 8px;
+  font-family: var(--font-mono); font-size: .72rem; width: 150px;
+}
+.ss-rename input:focus { outline: none; box-shadow: 0 0 0 1px var(--primary); }

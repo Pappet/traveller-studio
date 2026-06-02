@@ -15,7 +15,15 @@ def create_app(config_name: str | None = None) -> Flask:
 
     from .blueprints.main import bp as main_bp
     from .blueprints.sektor import bp as sektor_bp
+    from .blueprints.nsc import bp as nsc_bp
+    from .blueprints.auftrag import bp as auftrag_bp
+    from .blueprints.fraktion import bp as fraktion_bp
+    from .blueprints.welt import bp as welt_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(sektor_bp)
+    app.register_blueprint(nsc_bp)
+    app.register_blueprint(auftrag_bp)
+    app.register_blueprint(fraktion_bp)
+    app.register_blueprint(welt_bp)
 
     return app

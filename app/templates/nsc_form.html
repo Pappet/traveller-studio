@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}{{ "NSC bearbeiten" if modus == "bearbeiten" else "NSC anlegen" }} · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">ÜBERSICHT</a> / <a href="{{ zurueck_url }}">{{ kontext.name }} ({{ kontext.hex }})</a> / NSC</div>
+  <h1 class="form-title">{{ "NSC bearbeiten" if modus == "bearbeiten" else "Neuer NSC" }}</h1>
+  <div class="form-sub">PROFIL <span class="profil-lockup">{{ nsc.profil }}</span></div>
+
+  <form method="post" action="{{ action }}">
+    {% if modus == "neu" %}
+    <div class="form-card">
+      <div class="sec-label">Würfeln</div>
+      <div class="grid2">
+        <div class="field"><label for="archetyp">Beruf / Archetyp</label>
+          <select class="inp" id="archetyp" name="archetyp">
+            <option value="">— zufällig —</option>
+            {% for key, a in ARCHETYPEN.items() %}
+            <option value="{{ key }}" {{ "selected" if nsc.archetyp == key }}>{{ a.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="seed">Seed (optional)</label>
+          <input class="inp" id="seed" name="seed" placeholder="leer = zufällig">
+        </div>
+      </div>
+      <button class="btn btn--ghost" type="submit" name="aktion" value="generieren">⟳ WÜRFELN</button>
+      <p class="hint">Würfeln erzeugt einen neuen Vorschlag (ungespeichert). Felder darunter sind danach frei editierbar.</p>
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+      <div class="sec-label">Stammdaten</div>
+      <div class="grid2">
+        <div class="field"><label for="name">Name</label>
+          <input class="inp" id="name" name="name" value="{{ nsc.name }}" required>
+        </div>
+        <div class="field"><label for="rolle">Rolle am Tisch</label>
+          <select class="inp" id="rolle" name="rolle">
+            {% for r in ROLLEN %}<option value="{{ r }}" {{ "selected" if nsc.rolle == r }}>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="beschreibung">Beschreibung</label>
+        <textarea class="inp" id="beschreibung" name="beschreibung" rows="2">{{ nsc.beschreibung }}</textarea>
+      </div>
+      <div class="field"><label for="status">Status</label>
+        <select class="inp" id="status" name="status" style="max-width:200px">
+          <option value="lebendig" {{ "selected" if nsc.status != "tot" }}>lebendig</option>
+          <option value="tot" {{ "selected" if nsc.status == "tot" }}>tot</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="sec-label">Eigenschaften (2W6)</div>
+      <div class="eig-grid">
+        {% for kuerzel, label in EIGENSCHAFTEN %}
+        <div class="eig-cell">
+          <label for="eig_{{ kuerzel }}">{{ kuerzel }}</label>
+          <input id="eig_{{ kuerzel }}" name="eig_{{ kuerzel }}" type="number" min="0" max="15"
+                 value="{{ nsc.eigenschaften.get(kuerzel, 7) }}">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="sec-label">Fertigkeiten &amp; Ausrüstung</div>
+      <div class="grid2">
+        <div class="field"><label for="skills">Fertigkeiten (je Zeile „Name Stufe")</label>
+          <textarea class="inp" id="skills" name="skills" rows="6">{% for s, l in nsc.skills.items() %}{{ s }} {{ l }}
+{% endfor %}</textarea>
+        </div>
+        <div class="field"><label for="ausruestung">Ausrüstung (je Zeile ein Gegenstand)</label>
+          <textarea class="inp" id="ausruestung" name="ausruestung" rows="6">{% for a in nsc.ausruestung %}{{ a }}
+{% endfor %}</textarea>
+        </div>
+      </div>
+    </div>
+
+    {% if fraktionen %}
+    <div class="form-card">
+      <div class="sec-label">Fraktions-Zugehörigkeit</div>
+      {% for fr in fraktionen %}
+      {% set zg = nsc_fraktionen.get(fr.id) %}
+      <div class="assign-row">
+        <span class="ar-name">{{ fr.name }}{% if fr.typ %} <span class="hint">· {{ fr.typ }}</span>{% endif %}</span>
+        <input class="inp" style="width:130px;min-height:30px" name="rolle_{{ fr.id }}"
+               placeholder="Rolle" value="{{ zg.rolle if zg else '' }}">
+        <label><input type="checkbox" name="fr_{{ fr.id }}" {{ "checked" if zg }}> Mitglied</label>
+        <label><input type="checkbox" name="geheim_{{ fr.id }}" {{ "checked" if zg and zg.geheim }}> geheim</label>
+      </div>
+      {% endfor %}
+      <p class="hint">„geheim" markiert verdeckte Mitgliedschaft (Doppelagent) — erscheint als rotes Badge in der Detailkarte.</p>
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+      <div class="field"><label for="notizen">Notizen (wächst am Tisch)</label>
+        <textarea class="inp" id="notizen" name="notizen" rows="3">{{ nsc.notizen or "" }}</textarea>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn--primary" type="submit" name="aktion" value="speichern">SPEICHERN</button>
+        <a class="btn btn--ghost" href="{{ zurueck_url }}">ABBRECHEN</a>
+      </div>
+    </div>
+  </form>
+
+  {% if modus == "bearbeiten" %}
+  <form method="post" action="{{ url_for('nsc.nsc_loeschen', nsc_id=nsc.id) }}"
+        onsubmit="return confirm('Diesen NSC wirklich löschen?');">
+    <button class="btn btn--danger btn--sm" type="submit">NSC LÖSCHEN</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

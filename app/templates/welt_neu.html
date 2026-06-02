@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Welt anlegen · Hex {{ hexcode }} · Traveller Studio{% endblock %}
+
+{% block actions %}
+<a class="btn btn--ghost" href="{{ zurueck_url }}">ZURÜCK</a>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="crumb"><a href="{{ home_url }}">ÜBERSICHT</a> / <a href="{{ zurueck_url }}">SUBSEKTOR {{ letter }}</a> / NEUE WELT</div>
+  <h1 class="form-title">Welt in Hex {{ hexcode }} anlegen</h1>
+  <div class="form-sub">Dieser Hex ist leer. Eine neue Welt wird regelkonform gewürfelt — danach kannst du alle Werte von Hand anpassen.</div>
+
+  <form method="post" action="{{ action }}">
+    <div class="form-card">
+      <div class="field"><label for="seed">Seed (optional)</label>
+        <input class="inp" id="seed" name="seed" placeholder="leer = kanonischer Sub-Seed ({{ sektor.seed }}|{{ hexcode }})"></div>
+      <div class="toolbar">
+        <button class="btn btn--primary" type="submit">⟳ WÜRFELN &amp; ANLEGEN</button>
+        <a class="btn btn--ghost" href="{{ zurueck_url }}">ABBRECHEN</a>
+      </div>
+      <p class="hint">Mit leerem Seed entsteht genau die Welt, die der Sektor an diesem Hex erzeugt hätte, wenn die Besetzungsprobe gelungen wäre.</p>
+    </div>
+  </form>
+</div>
+{% endblock %}
