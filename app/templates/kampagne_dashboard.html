@@ -52,14 +52,17 @@
   {% endif %}
 
   <!-- ============ NSCs ============ -->
-  <div class="sec-label">NSCs</div>
+  <div class="sec-head">
+    <div class="sec-label">NSCs</div>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('nsc.nsc_neu_kampagne', kampagne_id=kampagne.id) }}">+ NSC</a>
+  </div>
   {% if nscs %}
   <div class="list">
     {% for n in nscs %}
     <a class="list__row" href="{{ url_for('nsc.nsc_bearbeiten', nsc_id=n.id) }}">
       <span class="list__name">{{ n.name }}</span>
       <span class="list__meta">{{ n.rolle or "—" }}{% if n.ort %} · {{ n.ort }}{% else %} · unverortet{% endif %}</span>
-      {% if n.status == "tot" %}<span class="badge badge--err">TOT</span>{% endif %}
+      {% if n.status == "tot" %}<span class="badge badge--red">TOT</span>{% endif %}
     </a>
     {% endfor %}
   </div>
@@ -68,7 +71,10 @@
   {% endif %}
 
   <!-- ============ FRAKTIONEN ============ -->
-  <div class="sec-label">Fraktionen</div>
+  <div class="sec-head">
+    <div class="sec-label">Fraktionen</div>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('fraktion.fraktion_neu_kampagne', kampagne_id=kampagne.id) }}">+ Fraktion</a>
+  </div>
   {% if fraktionen %}
   <div class="list">
     {% for f in fraktionen %}
@@ -83,7 +89,10 @@
   {% endif %}
 
   <!-- ============ AUFTRÄGE ============ -->
-  <div class="sec-label">Aufträge</div>
+  <div class="sec-head">
+    <div class="sec-label">Aufträge</div>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('auftrag.auftrag_neu_kampagne', kampagne_id=kampagne.id) }}">+ Auftrag</a>
+  </div>
   {% if auftraege %}
   <div class="list">
     {% for a in auftraege %}

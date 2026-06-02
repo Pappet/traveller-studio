@@ -79,6 +79,14 @@ def _fraktionen_aus_form(form, fraktionen: list[dict]) -> list[dict]:
     return out
 
 
+def _zurueck_url(ctx) -> str:
+    """Rücksprung-Ziel: Subsektor-Ansicht bei verortetem NSC, sonst Dashboard."""
+    if ctx.get("sektor_id"):
+        return url_for("sektor.subsektor_ansicht",
+                       sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
+    return url_for("kampagne.dashboard", kampagne_id=ctx["kampagne_id"])
+
+
 def _render(welt_kontext, nsc, *, modus, action, fraktionen, nsc_fraktionen):
     return render_template(
         "nsc_form.html",
@@ -86,10 +94,42 @@ def _render(welt_kontext, nsc, *, modus, action, fraktionen, nsc_fraktionen):
         EIGENSCHAFTEN=EIGENSCHAFTEN, ARCHETYPEN=ARCHETYPEN, ROLLEN=ROLLEN,
         fraktionen=fraktionen, nsc_fraktionen=nsc_fraktionen,
         home_url=url_for("main.index"),
-        zurueck_url=url_for("sektor.subsektor_ansicht",
-                            sektor_id=welt_kontext["sektor_id"],
-                            ss_index=welt_kontext["ss_index"] or 0),
+        zurueck_url=_zurueck_url(welt_kontext),
     )
+
+
+# =====================================================================
+#  Neu (kampagnenweit, Ort optional)
+# =====================================================================
+@bp.route("/kampagne/<int:kampagne_id>/nsc/neu", methods=["GET", "POST"])
+def nsc_neu_kampagne(kampagne_id: int):
+    db = dbmod.get_db()
+    kamp = persist.lade_kampagne(db, kampagne_id)
+    if not kamp:
+        abort(404)
+    ctx = {"sektor_id": None, "ss_index": 0, "name": kamp["name"], "hex": "—",
+           "kampagne_id": kampagne_id}
+    fraktionen = persist.liste_fraktionen(db, kampagne_id)
+
+    if request.method == "POST" and request.form.get("aktion") == "speichern":
+        nsc = _nsc_aus_form(request.form)
+        nid = persist.speichere_nsc(db, kampagne_id, None, nsc)
+        persist.aktualisiere_nsc(db, nid, {"status": nsc["status"], "notizen": nsc["notizen"]})
+        persist.setze_nsc_fraktionen(db, nid, _fraktionen_aus_form(request.form, fraktionen))
+        return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))
+
+    if request.method == "POST":           # aktion == "generieren"
+        archetyp = request.form.get("archetyp") or None
+        rolle = request.form.get("rolle") or "Kontakt"
+        seed = (request.form.get("seed") or "").strip() or _zufallsseed()
+    else:
+        archetyp, rolle, seed = None, "Kontakt", f"k{kampagne_id}|nsc|{_zufallsseed(4)}"
+    nsc = erzeuge_nsc(seed, archetyp=archetyp, rolle=rolle)
+    nsc["notizen"] = ""
+    nsc["status"] = "lebendig"
+    return _render(ctx, nsc, modus="neu",
+                   action=url_for("nsc.nsc_neu_kampagne", kampagne_id=kampagne_id),
+                   fraktionen=fraktionen, nsc_fraktionen={})
 
 
 # =====================================================================
@@ -151,8 +191,7 @@ def nsc_bearbeiten(nsc_id: int):
         }
         persist.aktualisiere_nsc(db, nsc_id, felder)
         persist.setze_nsc_fraktionen(db, nsc_id, _fraktionen_aus_form(request.form, fraktionen))
-        ziel = (url_for("sektor.subsektor_ansicht", sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
-                if ctx else url_for("main.index"))
+        ziel = _zurueck_url(ctx) if ctx else url_for("kampagne.dashboard", kampagne_id=nsc_row["kampagne_id"])
         return redirect(ziel)
 
     # Anzeige-dict aufbereiten
@@ -160,8 +199,9 @@ def nsc_bearbeiten(nsc_id: int):
     nsc_row["profil"] = profil_string(nsc_row["eigenschaften"]) if nsc_row.get("eigenschaften") else ""
     nsc_row.setdefault("archetyp", "")
     if not ctx:
-        # NSC ohne Welt -> minimaler Kontext fuer das Template
-        ctx = {"sektor_id": None, "ss_index": 0, "name": "—", "hex": "—"}
+        # NSC ohne Welt -> Kampagnen-Kontext fuer das Template
+        ctx = {"sektor_id": None, "ss_index": 0, "name": "—", "hex": "—",
+               "kampagne_id": nsc_row["kampagne_id"]}
     return _render(ctx, nsc_row, modus="bearbeiten",
                    action=url_for("nsc.nsc_bearbeiten", nsc_id=nsc_id),
                    fraktionen=fraktionen,
@@ -175,8 +215,9 @@ def nsc_loeschen(nsc_id: int):
     if not nsc_row:
         abort(404)
     ctx = persist.welt_kontext(db, nsc_row["aufenthalt_welt_id"]) if nsc_row["aufenthalt_welt_id"] else None
+    kampagne_id = nsc_row["kampagne_id"]
     persist.loesche_nsc(db, nsc_id)
     if ctx:
         return redirect(url_for("sektor.subsektor_ansicht",
                                 sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0))
-    return redirect(url_for("main.index"))
+    return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))

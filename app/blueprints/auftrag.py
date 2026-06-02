@@ -27,15 +27,65 @@ def _opt_int(v):
         return None
 
 
+def _zurueck_url(ctx) -> str:
+    if ctx.get("sektor_id"):
+        return url_for("sektor.subsektor_ansicht",
+                       sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
+    return url_for("kampagne.dashboard", kampagne_id=ctx["kampagne_id"])
+
+
 def _render(ctx, auftrag, *, modus, action, nscs, fraktionen):
     return render_template(
         "auftrag_form.html",
         modus=modus, action=action, auftrag=auftrag, kontext=ctx,
         nscs=nscs, fraktionen=fraktionen, ZIEL_KAT=ZIEL_KAT, STATUS=_STATUS,
         home_url=url_for("main.index"),
-        zurueck_url=url_for("sektor.subsektor_ansicht",
-                            sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0),
+        zurueck_url=_zurueck_url(ctx),
     )
+
+
+# =====================================================================
+#  Neu (kampagnenweit, Ort optional)
+# =====================================================================
+@bp.route("/kampagne/<int:kampagne_id>/auftrag/neu", methods=["GET", "POST"])
+def auftrag_neu_kampagne(kampagne_id: int):
+    db = dbmod.get_db()
+    kamp = persist.lade_kampagne(db, kampagne_id)
+    if not kamp:
+        abort(404)
+    ctx = {"sektor_id": None, "ss_index": 0, "name": kamp["name"], "kampagne_id": kampagne_id}
+    nscs = persist.liste_nscs(db, kampagne_id)
+    fraktionen = persist.liste_fraktionen(db, kampagne_id)
+
+    if request.method == "POST" and request.form.get("aktion") == "speichern":
+        row = {
+            "titel": (request.form.get("titel") or "Auftrag").strip() or "Auftrag",
+            "typ": request.form.get("typ") or None,
+            "belohnung": (request.form.get("belohnung") or "").strip() or None,
+            "komplikation": (request.form.get("komplikation") or "").strip() or None,
+            "wendung": (request.form.get("wendung") or "").strip() or None,
+            "notizen": (request.form.get("notizen") or "").strip() or None,
+            "status": request.form.get("status") if request.form.get("status") in _STATUS else "offen",
+            "kampagne_id": kampagne_id,
+            "welt_id": None,
+            "patron_nsc_id": _opt_int(request.form.get("patron_nsc_id")),
+            "fraktion_id": _opt_int(request.form.get("fraktion_id")),
+        }
+        persist.speichere_auftrag(db, row)
+        return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))
+
+    seed = ((request.form.get("seed") or "").strip() or f"k{kampagne_id}|auftrag|{_zufallsseed(4)}"
+            if request.method == "POST" else f"k{kampagne_id}|auftrag|{_zufallsseed(4)}")
+    a = erzeuge_auftrag(seed)
+    auftrag = {
+        "titel": a["titel"], "typ": a["typ"], "belohnung": a["belohnung"],
+        "komplikation": a["komplikation"], "wendung": a["wendung"],
+        "notizen": f"Auftraggeber: {a['auftraggeber']}\n{a['beschreibung']}",
+        "status": "offen", "patron_nsc_id": None, "fraktion_id": None,
+    }
+    return _render(ctx, auftrag, modus="neu",
+                   action=url_for("auftrag.auftrag_neu_kampagne", kampagne_id=kampagne_id),
+                   nscs=nscs, fraktionen=fraktionen)
 
 
 # =====================================================================
@@ -94,9 +144,11 @@ def auftrag_bearbeiten(auftrag_id: int):
         abort(404)
     ctx = persist.welt_kontext(db, auf["welt_id"]) if auf["welt_id"] else None
     if not ctx:
-        ctx = {"sektor_id": None, "ss_index": 0, "name": "—"}
-    nscs = persist.welt_nscs(db, auf["welt_id"]) if auf["welt_id"] else []
-    fraktionen = persist.sektor_fraktionen(db, ctx["sektor_id"]) if ctx["sektor_id"] else []
+        ctx = {"sektor_id": None, "ss_index": 0, "name": "—", "kampagne_id": auf["kampagne_id"]}
+    nscs = (persist.welt_nscs(db, auf["welt_id"]) if auf["welt_id"]
+            else persist.liste_nscs(db, auf["kampagne_id"]))
+    fraktionen = (persist.sektor_fraktionen(db, ctx["sektor_id"]) if ctx["sektor_id"]
+                  else persist.liste_fraktionen(db, auf["kampagne_id"]))
 
     if request.method == "POST":
         felder = {
@@ -111,9 +163,7 @@ def auftrag_bearbeiten(auftrag_id: int):
             "fraktion_id": _opt_int(request.form.get("fraktion_id")),
         }
         persist.aktualisiere_auftrag(db, auftrag_id, felder)
-        ziel = (url_for("sektor.subsektor_ansicht", sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
-                if ctx["sektor_id"] else url_for("main.index"))
-        return redirect(ziel)
+        return redirect(_zurueck_url(ctx))
 
     return _render(ctx, auf, modus="bearbeiten",
                    action=url_for("auftrag.auftrag_bearbeiten", auftrag_id=auftrag_id),

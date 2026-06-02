@@ -26,6 +26,13 @@ def _opt_int(v, lo=None, hi=None):
     return n
 
 
+def _zurueck_url(ctx) -> str:
+    if ctx.get("sektor_id"):
+        return url_for("sektor.subsektor_ansicht",
+                       sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
+    return url_for("kampagne.dashboard", kampagne_id=ctx["kampagne_id"])
+
+
 def _render(ctx, fraktion, *, modus, action, mitglieder):
     staerke = _staerke(fraktion["einfluss"])[0] if fraktion.get("einfluss") is not None else None
     return render_template(
@@ -33,8 +40,7 @@ def _render(ctx, fraktion, *, modus, action, mitglieder):
         modus=modus, action=action, fraktion=fraktion, kontext=ctx,
         mitglieder=mitglieder, REICHWEITE=_REICHWEITE, staerke=staerke,
         home_url=url_for("main.index"),
-        zurueck_url=url_for("sektor.subsektor_ansicht",
-                            sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0),
+        zurueck_url=_zurueck_url(ctx),
     )
 
 
@@ -47,6 +53,26 @@ def _felder(form) -> dict:
         "ziele": (form.get("ziele") or "").strip() or None,
         "notizen": (form.get("notizen") or "").strip() or None,
     }
+
+
+# =====================================================================
+#  Neu (kampagnenweit, ohne Heimatwelt)
+# =====================================================================
+@bp.route("/kampagne/<int:kampagne_id>/fraktion/neu", methods=["GET", "POST"])
+def fraktion_neu_kampagne(kampagne_id: int):
+    db = dbmod.get_db()
+    kamp = persist.lade_kampagne(db, kampagne_id)
+    if not kamp:
+        abort(404)
+    ctx = {"sektor_id": None, "ss_index": 0, "name": kamp["name"], "kampagne_id": kampagne_id}
+    if request.method == "POST":
+        persist.speichere_fraktion(db, kampagne_id, None, _felder(request.form))
+        return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))
+    leer = {"name": "", "typ": "", "reichweite": "lokal", "einfluss": None,
+            "ziele": "", "notizen": ""}
+    return _render(ctx, leer, modus="neu",
+                   action=url_for("fraktion.fraktion_neu_kampagne", kampagne_id=kampagne_id),
+                   mitglieder=[])
 
 
 # =====================================================================
@@ -79,13 +105,11 @@ def fraktion_bearbeiten(fraktion_id: int):
         abort(404)
     ctx = persist.welt_kontext(db, fr["heimatwelt_id"]) if fr["heimatwelt_id"] else None
     if not ctx:
-        ctx = {"sektor_id": None, "ss_index": 0, "name": "—"}
+        ctx = {"sektor_id": None, "ss_index": 0, "name": "—", "kampagne_id": fr["kampagne_id"]}
 
     if request.method == "POST":
         persist.aktualisiere_fraktion(db, fraktion_id, _felder(request.form))
-        ziel = (url_for("sektor.subsektor_ansicht", sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0)
-                if ctx["sektor_id"] else url_for("main.index"))
-        return redirect(ziel)
+        return redirect(_zurueck_url(ctx))
 
     return _render(ctx, fr, modus="bearbeiten",
                    action=url_for("fraktion.fraktion_bearbeiten", fraktion_id=fraktion_id),
@@ -99,8 +123,9 @@ def fraktion_loeschen(fraktion_id: int):
     if not fr:
         abort(404)
     ctx = persist.welt_kontext(db, fr["heimatwelt_id"]) if fr["heimatwelt_id"] else None
+    kampagne_id = fr["kampagne_id"]
     persist.loesche_fraktion(db, fraktion_id)
     if ctx:
         return redirect(url_for("sektor.subsektor_ansicht",
                                 sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0))
-    return redirect(url_for("main.index"))
+    return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))

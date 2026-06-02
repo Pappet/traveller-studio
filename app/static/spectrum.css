@@ -487,6 +487,19 @@ textarea.inp { resize: vertical; line-height: 1.5; font-family: var(--font-mono)
 .icon-btn:hover { color: var(--on-surface); background: var(--surface-container); }
 .sec-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 8px; }
 .sec-head .sec-label { margin: 0; }
+
+/* Dashboard-Listen (NSC / Fraktion / Auftrag) */
+.list { display: flex; flex-direction: column; gap: 4px; }
+.list__row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--surface-container-low, rgba(255,255,255,.02));
+  text-decoration: none; color: var(--on-surface);
+  border: 1px solid transparent;
+}
+.list__row:hover { border-color: var(--outline, rgba(255,255,255,.12)); background: var(--surface-container); }
+.list__name { font-weight: 600; }
+.list__meta { color: var(--on-surface-variant); font-size: .85rem; margin-right: auto; }
 .status-sel {
   background: var(--surface-container); color: var(--on-surface-variant);
   border: none; border-radius: var(--radius-pill); padding: 2px 8px;

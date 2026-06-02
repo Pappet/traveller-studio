@@ -121,3 +121,21 @@ def test_nsc_standalone_anlegen(client):
     with app.app_context():
         n = dbmod.get_db().execute("SELECT kampagne_id, aufenthalt_welt_id FROM nsc").fetchone()
     assert n["kampagne_id"] == kid and n["aufenthalt_welt_id"] is None
+
+
+def test_fraktion_auftrag_standalone(client):
+    app, c = client
+    c.post("/kampagne/neu", data={"name": "K"})
+    with app.app_context():
+        kid = dbmod.get_db().execute("SELECT id FROM kampagne").fetchone()["id"]
+    assert c.get(f"/kampagne/{kid}/fraktion/neu").status_code == 200
+    assert c.post(f"/kampagne/{kid}/fraktion/neu",
+                  data={"name": "Konzern X", "reichweite": "interstellar"}).status_code == 302
+    assert c.get(f"/kampagne/{kid}/auftrag/neu").status_code == 200
+    assert c.post(f"/kampagne/{kid}/auftrag/neu",
+                  data={"aktion": "speichern", "titel": "Job", "status": "offen"}).status_code == 302
+    with app.app_context():
+        db = dbmod.get_db()
+        assert db.execute("SELECT kampagne_id FROM fraktion").fetchone()["kampagne_id"] == kid
+        a = db.execute("SELECT kampagne_id, welt_id FROM auftrag").fetchone()
+        assert a["kampagne_id"] == kid and a["welt_id"] is None
