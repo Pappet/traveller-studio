@@ -106,11 +106,12 @@ def erzeuge_fraktionen(welt, master_seed: str) -> list[dict]:
     return fraktionen
 
 
-def fraktion_zu_row(fr: dict, heimatwelt_id: int) -> dict:
+def fraktion_zu_row(fr: dict, heimatwelt_id: int, kampagne_id: int) -> dict:
     """Mappt ein Fraktions-dict auf die Spalten der `fraktion`-Tabelle."""
     import json
     return {
         "name": fr["name"],
+        "kampagne_id": kampagne_id,
         "typ": fr["art"],                       # Splittergruppe / Oppositionsbewegung
         "reichweite": fr["reichweite"],
         "heimatwelt_id": heimatwelt_id,

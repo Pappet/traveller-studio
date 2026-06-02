@@ -220,12 +220,13 @@ def erzeuge_nsc(seed: str, *, archetyp: str | None = None,
     }
 
 
-def nsc_zu_row(nsc: dict, welt_id: int | None) -> dict:
+def nsc_zu_row(nsc: dict, kampagne_id: int, aufenthalt_welt_id: int | None) -> dict:
     """Mappt ein NSC-dict auf die Spalten der `nsc`-Tabelle (JSON serialisiert)."""
     import json
     return {
         "name": nsc["name"],
-        "welt_id": welt_id,
+        "kampagne_id": kampagne_id,
+        "aufenthalt_welt_id": aufenthalt_welt_id,
         "eigenschaften": json.dumps(nsc["eigenschaften"]),
         "skills": json.dumps(nsc["skills"]),
         "laufbahn": json.dumps(nsc.get("laufbahn")) if nsc.get("laufbahn") else None,
