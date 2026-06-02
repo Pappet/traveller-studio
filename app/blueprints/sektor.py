@@ -30,12 +30,19 @@ def _welt_dict(w) -> dict:
 
 @bp.post("/generieren")
 def sektor_generieren():
+    db = dbmod.get_db()
+    try:
+        kampagne_id = int(request.form.get("kampagne_id", ""))
+    except (TypeError, ValueError):
+        abort(400)
+    if not persist.lade_kampagne(db, kampagne_id):
+        abort(404)
     name = (request.form.get("name") or "Unbenannt").strip() or "Unbenannt"
     seed = (request.form.get("seed") or "").strip() or _zufallsseed()
     dichte = request.form.get("dichte") or "normal"
     if dichte not in ("normal", "dicht", "duenn", "rift"):
         dichte = "normal"
-    sektor_id = persist.speichere_sektor(dbmod.get_db(), seed, name, dichte)
+    sektor_id = persist.speichere_sektor(db, seed, name, dichte, kampagne_id=kampagne_id)
     return redirect(url_for("sektor.subsektor_ansicht", sektor_id=sektor_id, ss_index=0))
 
 
@@ -68,7 +75,7 @@ def subsektor_ansicht(sektor_id: int, ss_index: int):
         welten_data=welten_data,
         links=links,
         vorhanden=vorhanden,
-        home_url=url_for("main.index"),
+        home_url=url_for("kampagne.dashboard", kampagne_id=sektor["kampagne_id"]),
         export_url=url_for("sektor.export_uwp", sektor_id=sektor_id, ss_index=ss_index),
         rename_url=url_for("welt.subsektor_benennen", sektor_id=sektor_id, ss_index=ss_index),
         welt_neu_base=url_for("welt.welt_neu", sektor_id=sektor_id, ss_index=ss_index),
@@ -87,6 +94,9 @@ def export_uwp(sektor_id: int, ss_index: int):
 @bp.post("/<int:sektor_id>/loeschen")
 def sektor_loeschen(sektor_id: int):
     db = dbmod.get_db()
+    sektor = persist.lade_sektor(db, sektor_id)
+    if not sektor:
+        abort(404)
     db.execute("DELETE FROM sektor WHERE id=?", (sektor_id,))
     db.commit()
-    return redirect(url_for("main.index"))
+    return redirect(url_for("kampagne.dashboard", kampagne_id=sektor["kampagne_id"]))
