@@ -61,43 +61,35 @@ Diese Entscheidungen sind das Fundament — neue Features sollen sie respektiere
 
 ---
 
-## Was noch fehlt (Prep-Werkzeuge)
+## Prep-Werkzeuge
 
-### 1. NSC-Editor & -Generator  ⭐ nächster Schritt
-**Warum zuerst:** Die Detailkarte zeigt NSCs bereits an, sobald sie in der DB
-stehen — es fehlt nur das Anlegen. Das ist der kürzeste Weg, den Prep↔Tisch-
-Kreis wirklich zu schließen.
-
-- **Generator** (`app/generators/nsc.py`, neu): schneller NSC (Eigenschaften 2W6,
-  Skill-Paket nach Rolle) und/oder voller Lifepath. Seedbar, mit `wuerfe`.
-- **Speichern**: `persist.speichere_nsc()`; nutzt vorhandene `nsc`-Tabelle.
+### 1. NSC-Editor & -Generator  ✅ *erledigt*
+- **Generator** (`app/generators/nsc.py`): schneller NSC (Eigenschaften 2W6,
+  Skill-Paket nach Archetyp, leichte Laufbahn). Seedbar, mit `wuerfe`.
+- **Speichern**: `persist.speichere_nsc()` über die `nsc`-Tabelle.
 - **Verknüpfen**: NSC ↔ Welt (FK), NSC ↔ Fraktion über `nsc_fraktion`
-  inkl. `geheim`-Checkbox → erscheint als rotes Badge in der Card.
-- **UI**: Routen `GET/POST /welt/<id>/nsc/neu`, `GET/POST /nsc/<id>`
-  (Bearbeiten, inkl. dem Freitext-`notizen`-Feld, das am Tisch wächst).
-  Neues Template `app/templates/nsc_form.html`.
-- **Card-Hook**: in `app/templates/sektor/subsektor.html` einen „+ NSC“-Knoten im NSCs-Abschnitt.
+  inkl. `geheim`-Flag → rotes Badge in der Card.
+- **UI**: `GET/POST /welt/<id>/nsc/neu`, `GET/POST /nsc/<id>`, Freitext-`notizen`,
+  Template `app/templates/nsc_form.html`, „+ NSC“-Knoten in der Detailkarte.
 
-### 2. Auftrags-/Patron-Generator
-- **Generator** (`app/generators/auftrag.py`, neu): die 6×6-Patron-Tabellen
+### 2. Auftrags-/Patron-Generator  ✅ *erledigt*
+- **Generator** (`app/generators/auftrag.py`): 6×6-Tabellen
   (Auftraggeber, Ziel, Komplikation, Wendung, Belohnung).
-- **Speichern**: `auftrag`-Tabelle steht schon; `patron_nsc_id`, `welt_id`,
-  `fraktion_id` als FKs setzen → Auftrag wird zum Knoten, der NSC/Welt/Fraktion
-  zusammenzieht.
+- **Speichern**: `auftrag`-Tabelle mit `patron_nsc_id`, `welt_id`, `fraktion_id`
+  als FKs → Auftrag zieht NSC/Welt/Fraktion zusammen.
 - **UI**: `/welt/<id>/auftrag/neu`, Statuswechsel
-  (offen→aktiv→abgeschlossen/gescheitert) direkt aus der Card.
+  (offen→aktiv→abgeschlossen/gescheitert) aus der Card.
 
-### 3. Fraktionen editierbar machen
-- Aktuell nur generiert/angezeigt. Fehlt: bearbeiten (Ziele, Einfluss, Notizen),
-  manuell anlegen, NSCs zuordnen. Routen `/fraktion/<id>`.
-- Optional: sektorweite Fraktionen (`reichweite='interstellar'`,
-  Einflusssphäre über `verknuepfung` statt nur `heimatwelt_id`).
+### 3. Fraktionen editierbar machen  ✅ *erledigt*
+- Bearbeiten (Ziele, Einfluss, Notizen), manuell anlegen, Mitgliederliste,
+  Routen `/welt/<id>/fraktion/neu`, `/fraktion/<id>`. `reichweite` (lokal/
+  interstellar) wählbar.
+- Offen: sektorweite Einflusssphäre über `verknuepfung` statt nur `heimatwelt_id`.
 
-### 4. Sektor-/Welt-Editor (Überschreiben von Würfen)
-- Einzelne Welt **neu würfeln** (Sub-Seed neu) oder Felder von Hand
-  überschreiben — Welt umbenennen, Reisezone auf „rot“ setzen, UWP-Ziffer ändern.
-- Subsektoren benennen (`subsektor.name` existiert, wird noch nicht genutzt).
-- Welt von Hand in leeren Hex setzen.
+### 4. Sektor-/Welt-Editor (Überschreiben von Würfen)  ✅ *erledigt*
+- Welt **neu würfeln** (neuer Sub-Seed) oder Felder von Hand überschreiben
+  (uwp + Handelscodes werden neu berechnet, Reisezone als manueller Override).
+- Subsektoren benennen, Welt von Hand in leeren Hex setzen.
 
 ### 5. Generatoren-Restpunkte aus dem Regelwerk
 - **Temperatur-Atmosphären-WM** final gegen das Buch prüfen (Code: `# PRUEFEN`).
@@ -154,13 +146,12 @@ Kreis wirklich zu schließen.
 
 ## Vorgeschlagene Reihenfolge
 
-1. **NSC-Editor & -Generator** (1) — schließt den Prep↔Tisch-Kreis sichtbar.
-2. **Auftrags-Generator** (2) — macht Welten zu Abenteuer-Ausgangspunkten.
-3. **Würfler** (6) — kleiner, sofort am Tisch nützlicher Gewinn.
-4. **Reiseplaner** (7) + **Handelsrechner** (8) — bauen auf vorhandener Logik
+1. ~~NSC-Editor (1), Auftrags-Generator (2), Fraktions- & Welt-Editor (3, 4)~~
+   *(erledigt — Prep↔Tisch-Kreis geschlossen)*.
+2. **Würfler** (6) — kleiner, sofort am Tisch nützlicher Gewinn.
+3. **Reiseplaner** (7) + **Handelsrechner** (8) — bauen auf vorhandener Logik
    (Distanz, Trade-Codes) auf und ergeben zusammen den „Schiff-unterwegs“-Loop.
-5. Danach: Fraktions-/Welt-Editoren (3, 4), Sternendaten (5), Begegnungen (9),
-   Kampagnen-Tooling (10).
+4. Danach: Sternendaten (5), Begegnungen (9), Kampagnen-Tooling (10).
 
 Parallel laufend: technische Schuld abbauen, sobald ein Bereich ohnehin
 angefasst wird (z. B. CSS zusammenführen, wenn die Subsektor-Ansicht zum
