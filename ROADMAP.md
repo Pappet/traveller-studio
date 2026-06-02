@@ -24,6 +24,19 @@ Diese Entscheidungen sind das Fundament — neue Features sollen sie respektiere
 
 ---
 
+## Kampagnen-zentrierte Architektur (✅ umgesetzt)
+
+`Kampagne` ist jetzt die Wurzel (1 Kampagne : n Sektoren); NSC/Fraktion/Auftrag
+tragen direkt `kampagne_id`. Startseite = Kampagnen-Liste, darunter ein
+Kampagnen-Dashboard (Sektoren/NSC/Fraktion/Auftrag) mit eigenständigen Editoren.
+NSC-Orte unterscheiden **Aufenthalt** (`nsc.aufenthalt_welt_id`, treibt die Karte)
+und **Herkunft** (`verknuepfung`-Graph, `relation='stammt_von'`); die Detailkarte
+gruppiert NSCs nach „hier ansässig / stammt von hier / wirkt hier". Der
+Fraktions-Picker ist eine Kaskade (Subsektor▸Hex▸Fraktion) plus Suche statt
+Flachliste. Konzept + Plan unter `docs/superpowers/`.
+
+---
+
 ## Was steht (✅ implementiert)
 
 ### Datenmodell (`schema.sql`)

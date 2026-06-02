@@ -1,7 +1,8 @@
 # Kampagnen-zentrierte Architektur — Konzept
 
 **Datum:** 2026-06-02
-**Status:** Konzept (Zielarchitektur, noch keine Implementierungsreihenfolge fixiert)
+**Status:** ✅ umgesetzt (Phasen A–D, Branch `feat/kampagnen-architektur`).
+Plan: `docs/superpowers/plans/2026-06-02-kampagnen-architektur.md`.
 **Auslöser:** Fraktions-Zuordnung im NSC-Formular ist eine endlose Flachliste
 aller Sektor-Fraktionen. Daraus erwuchs die größere Frage: NSC-Orte (Herkunft
 vs. Aufenthalt), eigenständige Editoren, und ob das Werkzeug **kampagnen-zentriert**
