@@ -123,6 +123,18 @@ def test_nsc_standalone_anlegen(client):
     assert n["kampagne_id"] == kid and n["aufenthalt_welt_id"] is None
 
 
+def test_fraktionsnamen_eindeutig_pro_welt(app_ctx):
+    db = dbmod.get_db()
+    kid = persist.erstelle_kampagne(db, "K")
+    persist.speichere_sektor(db, "DUP-SEED", "S", dichte="dicht", kampagne_id=kid)
+    rows = db.execute("SELECT heimatwelt_id, name FROM fraktion").fetchall()
+    pro_welt: dict = {}
+    for r in rows:
+        pro_welt.setdefault(r["heimatwelt_id"], []).append(r["name"])
+    for namen in pro_welt.values():
+        assert len(namen) == len(set(namen)), f"doppelte Fraktionsnamen: {namen}"
+
+
 def test_fraktion_auftrag_standalone(client):
     app, c = client
     c.post("/kampagne/neu", data={"name": "K"})

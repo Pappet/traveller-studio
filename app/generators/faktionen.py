@@ -76,6 +76,11 @@ def erzeuge_fraktionen(welt, master_seed: str) -> list[dict]:
     dm = (1 if reg in (0, 7) else 0) + (-1 if reg >= 10 else 0)
     anzahl = max(0, w(rng, n=1, sides=3) + dm)
 
+    # Namen je Welt eindeutig halten: bei Kollision deterministisch I/II/III...
+    # (keine zusaetzlichen rng-Wuerfe -> Folge-Rolls bleiben stabil).
+    _ROEMISCH = ["", " II", " III", " IV", " V", " VI", " VII", " VIII"]
+    gesehen: dict[str, int] = {}
+
     fraktionen: list[dict] = []
     for _ in range(anzahl):
         rolls: dict = {}
@@ -91,8 +96,13 @@ def erzeuge_fraktionen(welt, master_seed: str) -> list[dict]:
         sr = w(rng); rolls["staerke"] = sr
         st_kurz, st_lang = _staerke(sr)
 
+        basis = _fraktionsname(rng)
+        n_seen = gesehen.get(basis, 0)
+        gesehen[basis] = n_seen + 1
+        name = basis + (_ROEMISCH[n_seen] if n_seen < len(_ROEMISCH) else f" {n_seen + 1}")
+
         fraktionen.append({
-            "name": _fraktionsname(rng),
+            "name": name,
             "regierung": fr_reg,
             "regierung_name": REGIERUNG_NAMEN.get(fr_reg, "Sonstige"),
             "art": art,
