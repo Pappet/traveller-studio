@@ -59,7 +59,7 @@ def fraktion_neu(welt_id: int):
     if not ctx:
         abort(404)
     if request.method == "POST":
-        persist.speichere_fraktion(db, welt_id, _felder(request.form))
+        persist.speichere_fraktion(db, ctx["kampagne_id"], welt_id, _felder(request.form))
         return redirect(url_for("sektor.subsektor_ansicht",
                                 sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0))
     leer = {"name": "", "typ": "", "reichweite": "lokal", "einfluss": None,

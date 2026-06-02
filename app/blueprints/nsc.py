@@ -105,7 +105,7 @@ def nsc_neu(welt_id: int):
 
     if request.method == "POST" and request.form.get("aktion") == "speichern":
         nsc = _nsc_aus_form(request.form)
-        nid = persist.speichere_nsc(db, welt_id, nsc)
+        nid = persist.speichere_nsc(db, ctx["kampagne_id"], welt_id, nsc)
         persist.aktualisiere_nsc(db, nid, {"status": nsc["status"], "notizen": nsc["notizen"]})
         persist.setze_nsc_fraktionen(db, nid, _fraktionen_aus_form(request.form, fraktionen))
         return redirect(url_for("sektor.subsektor_ansicht",
@@ -136,7 +136,7 @@ def nsc_bearbeiten(nsc_id: int):
     nsc_row = persist.lade_nsc(db, nsc_id)
     if not nsc_row:
         abort(404)
-    welt_id = nsc_row["welt_id"]
+    welt_id = nsc_row["aufenthalt_welt_id"]
     ctx = persist.welt_kontext(db, welt_id) if welt_id else None
     sektor_id = ctx["sektor_id"] if ctx else None
     fraktionen = persist.sektor_fraktionen(db, sektor_id) if sektor_id else []
@@ -174,7 +174,7 @@ def nsc_loeschen(nsc_id: int):
     nsc_row = persist.lade_nsc(db, nsc_id)
     if not nsc_row:
         abort(404)
-    ctx = persist.welt_kontext(db, nsc_row["welt_id"]) if nsc_row["welt_id"] else None
+    ctx = persist.welt_kontext(db, nsc_row["aufenthalt_welt_id"]) if nsc_row["aufenthalt_welt_id"] else None
     persist.loesche_nsc(db, nsc_id)
     if ctx:
         return redirect(url_for("sektor.subsektor_ansicht",

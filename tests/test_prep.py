@@ -24,7 +24,11 @@ def app_client(tmp_path):
 
 def _sektor_mit_welt(app, client):
     """Erzeugt einen dichten Sektor und liefert (sektor_id, welt_id, hex, leerer_hex) in Subsektor 0."""
-    client.post("/sektor/generieren", data={"name": "T", "seed": "PREP-SEED", "dichte": "dicht"})
+    client.post("/kampagne/neu", data={"name": "K"})
+    with app.app_context():
+        kid = dbmod.get_db().execute("SELECT id FROM kampagne").fetchone()["id"]
+    client.post("/sektor/generieren",
+                data={"name": "T", "seed": "PREP-SEED", "dichte": "dicht", "kampagne_id": str(kid)})
     with app.app_context():
         db = dbmod.get_db()
         sid = db.execute("SELECT id FROM sektor").fetchone()["id"]
@@ -72,7 +76,7 @@ def test_nsc_speichern_und_laden(app_client):
              "eig_STR": 7, "eig_GES": 9, "eig_KON": 8, "eig_INT": 10, "eig_BIL": 6, "eig_SOZ": 5}
     assert client.post(f"/welt/{wid}/nsc/neu", data=daten).status_code == 302
     import json
-    n = _q(app, "SELECT * FROM nsc WHERE welt_id=?", (wid,))
+    n = _q(app, "SELECT * FROM nsc WHERE aufenthalt_welt_id=?", (wid,))
     assert n["name"] == "Testkontakt" and n["rolle"] == "Patron"
     assert json.loads(n["eigenschaften"])["GES"] == 9
     assert json.loads(n["skills"])["Pilot"] == 2

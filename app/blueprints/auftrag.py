@@ -59,6 +59,7 @@ def auftrag_neu(welt_id: int):
             "wendung": (request.form.get("wendung") or "").strip() or None,
             "notizen": (request.form.get("notizen") or "").strip() or None,
             "status": request.form.get("status") if request.form.get("status") in _STATUS else "offen",
+            "kampagne_id": ctx["kampagne_id"],
             "welt_id": welt_id,
             "patron_nsc_id": _opt_int(request.form.get("patron_nsc_id")),
             "fraktion_id": _opt_int(request.form.get("fraktion_id")),

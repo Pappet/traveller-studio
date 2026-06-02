@@ -320,7 +320,7 @@ def lade_welt(db: sqlite3.Connection, welt_id: int) -> dict | None:
 
 def welt_nscs(db: sqlite3.Connection, welt_id: int) -> list[dict]:
     """NSCs einer Welt (fuer Patron-Auswahl im Auftrags-Formular)."""
-    rows = db.execute("SELECT id, name, rolle FROM nsc WHERE welt_id=? ORDER BY name",
+    rows = db.execute("SELECT id, name, rolle FROM nsc WHERE aufenthalt_welt_id=? ORDER BY name",
                       (welt_id,)).fetchall()
     return [dict(r) for r in rows]
 
@@ -338,7 +338,7 @@ def sektor_fraktionen(db: sqlite3.Connection, sektor_id: int) -> list[dict]:
 #  NSC
 # ---------------------------------------------------------------------
 _NSC_JSON = ("eigenschaften", "skills", "laufbahn", "ausruestung", "wuerfe")
-_NSC_EDIT = {"name", "rolle", "beschreibung", "notizen", "status", "getroffen", "welt_id"}
+_NSC_EDIT = {"name", "rolle", "beschreibung", "notizen", "status", "getroffen", "aufenthalt_welt_id"}
 
 
 def _hydrate_nsc(row: sqlite3.Row) -> dict:
