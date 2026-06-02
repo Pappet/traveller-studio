@@ -127,23 +127,28 @@ def lade_subsektor_welten(db: sqlite3.Connection, sektor_id: int, ss_index: int)
 
 
 def baue_links(db: sqlite3.Connection, welt_dicts: list[dict]) -> dict:
-    """hex -> {nscs, auftraege, fraktionen} fuer die Detailkarte."""
+    """hex -> {nscs, nscs_nach_ort, auftraege, fraktionen} fuer die Detailkarte.
+
+    NSCs werden nach Orts-Relation gruppiert (befindet_sich/stammt_von/wirkt_in/
+    versteckt_auf). `nscs` bleibt als Alias der befindet_sich-Gruppe erhalten.
+    """
     links: dict = {}
     for w in welt_dicts:
         wid, hexc = w["id"], w["hex"]
         eintrag: dict = {}
 
-        nscs = db.execute(
-            "SELECT id, name, rolle, status FROM nsc WHERE aufenthalt_welt_id=? ORDER BY id", (wid,)).fetchall()
-        if nscs:
-            liste = []
-            for n in nscs:
-                geheim = db.execute(
-                    "SELECT 1 FROM nsc_fraktion WHERE nsc_id=? AND geheim=1 LIMIT 1",
-                    (n["id"],)).fetchone() is not None
-                liste.append({"id": n["id"], "name": n["name"], "rolle": n["rolle"],
-                              "status": n["status"], "geheim": geheim})
-            eintrag["nscs"] = liste
+        gruppen: dict[str, list] = {}
+        for t in nscs_an_welt(db, wid):
+            geheim = db.execute(
+                "SELECT 1 FROM nsc_fraktion WHERE nsc_id=? AND geheim=1 LIMIT 1",
+                (t["id"],)).fetchone() is not None
+            gruppen.setdefault(t["relation"], []).append(
+                {"id": t["id"], "name": t["name"], "rolle": t["rolle"],
+                 "status": t["status"], "geheim": geheim})
+        if gruppen:
+            eintrag["nscs_nach_ort"] = gruppen
+            if gruppen.get("befindet_sich"):
+                eintrag["nscs"] = gruppen["befindet_sich"]
 
         auf = db.execute(
             "SELECT id, titel, typ, status FROM auftrag WHERE welt_id=? ORDER BY id", (wid,)).fetchall()
@@ -429,14 +434,16 @@ def nsc_orte(db: sqlite3.Connection, nsc_id: int) -> list[dict]:
 
 def nscs_an_welt(db: sqlite3.Connection, welt_id: int) -> list[dict]:
     """NSCs mit Bezug zu Welt W: Aufenthalt (relation='befindet_sich') + Graph-Relationen."""
-    out = [{"id": r["id"], "name": r["name"], "rolle": r["rolle"], "relation": "befindet_sich"}
+    out = [{"id": r["id"], "name": r["name"], "rolle": r["rolle"],
+            "status": r["status"], "relation": "befindet_sich"}
            for r in db.execute(
-               "SELECT id, name, rolle FROM nsc WHERE aufenthalt_welt_id=?", (welt_id,)).fetchall()]
+               "SELECT id, name, rolle, status FROM nsc WHERE aufenthalt_welt_id=?", (welt_id,)).fetchall()]
     for r in db.execute(
-            "SELECT n.id, n.name, n.rolle, v.relation FROM verknuepfung v "
+            "SELECT n.id, n.name, n.rolle, n.status, v.relation FROM verknuepfung v "
             "JOIN nsc n ON n.id=v.von_id "
             "WHERE v.von_typ='nsc' AND v.zu_typ='welt' AND v.zu_id=?", (welt_id,)).fetchall():
-        out.append({"id": r["id"], "name": r["name"], "rolle": r["rolle"], "relation": r["relation"]})
+        out.append({"id": r["id"], "name": r["name"], "rolle": r["rolle"],
+                    "status": r["status"], "relation": r["relation"]})
     return out
 
 

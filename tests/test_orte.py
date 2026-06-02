@@ -62,3 +62,17 @@ def test_nscs_an_welt_aufenthalt_und_herkunft(app_ctx):
     rel_b = {t["relation"] for t in persist.nscs_an_welt(db, wb) if t["id"] == nid}
     assert "befindet_sich" in rel_a
     assert "stammt_von" in rel_b
+
+
+def test_baue_links_gruppiert_nach_ort(app_ctx):
+    app = app_ctx
+    kid, wa, wb = _kampagne_mit_sektor(app)
+    db = dbmod.get_db()
+    from app.generators.nsc import erzeuge_nsc
+    nid = persist.speichere_nsc(db, kid, wa, erzeuge_nsc("S"))
+    persist.setze_nsc_ort(db, nid, welt_id=wb, relation="stammt_von")
+    welten = [persist.lade_welt(db, wa), persist.lade_welt(db, wb)]
+    links = persist.baue_links(db, welten)
+    hex_a, hex_b = welten[0]["hex"], welten[1]["hex"]
+    assert any(n["id"] == nid for n in links[hex_a]["nscs_nach_ort"]["befindet_sich"])
+    assert any(n["id"] == nid for n in links[hex_b]["nscs_nach_ort"]["stammt_von"])
