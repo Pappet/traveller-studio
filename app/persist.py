@@ -393,6 +393,54 @@ def setze_nsc_fraktionen(db: sqlite3.Connection, nsc_id: int,
 
 
 # ---------------------------------------------------------------------
+#  NSC-Orte (Herkunft/wirkt_in via verknuepfung-Graph)
+#  -------------------------------------------------------------------
+#  Aufenthalt = Backbone-FK nsc.aufenthalt_welt_id (label 'befindet_sich').
+#  Herkunft & Sonstiges = weiche Querverweise im Graph.
+# ---------------------------------------------------------------------
+_NSC_ORT_RELATIONEN = ("stammt_von", "wirkt_in", "versteckt_auf")
+
+
+def setze_nsc_ort(db: sqlite3.Connection, nsc_id: int, welt_id: int, relation: str) -> None:
+    if relation not in _NSC_ORT_RELATIONEN:
+        return
+    db.execute(
+        "INSERT OR IGNORE INTO verknuepfung(von_typ, von_id, zu_typ, zu_id, relation) "
+        "VALUES('nsc', ?, 'welt', ?, ?)", (nsc_id, welt_id, relation))
+    db.commit()
+
+
+def loesche_nsc_orte(db: sqlite3.Connection, nsc_id: int, relation: str | None = None) -> None:
+    if relation:
+        db.execute("DELETE FROM verknuepfung WHERE von_typ='nsc' AND von_id=? "
+                   "AND zu_typ='welt' AND relation=?", (nsc_id, relation))
+    else:
+        db.execute("DELETE FROM verknuepfung WHERE von_typ='nsc' AND von_id=? AND zu_typ='welt'",
+                   (nsc_id,))
+    db.commit()
+
+
+def nsc_orte(db: sqlite3.Connection, nsc_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT zu_id AS welt_id, relation FROM verknuepfung "
+        "WHERE von_typ='nsc' AND von_id=? AND zu_typ='welt'", (nsc_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def nscs_an_welt(db: sqlite3.Connection, welt_id: int) -> list[dict]:
+    """NSCs mit Bezug zu Welt W: Aufenthalt (relation='befindet_sich') + Graph-Relationen."""
+    out = [{"id": r["id"], "name": r["name"], "rolle": r["rolle"], "relation": "befindet_sich"}
+           for r in db.execute(
+               "SELECT id, name, rolle FROM nsc WHERE aufenthalt_welt_id=?", (welt_id,)).fetchall()]
+    for r in db.execute(
+            "SELECT n.id, n.name, n.rolle, v.relation FROM verknuepfung v "
+            "JOIN nsc n ON n.id=v.von_id "
+            "WHERE v.von_typ='nsc' AND v.zu_typ='welt' AND v.zu_id=?", (welt_id,)).fetchall():
+        out.append({"id": r["id"], "name": r["name"], "rolle": r["rolle"], "relation": r["relation"]})
+    return out
+
+
+# ---------------------------------------------------------------------
 #  Auftrag
 # ---------------------------------------------------------------------
 _AUFTRAG_EDIT = {"titel", "typ", "belohnung", "komplikation", "wendung",
