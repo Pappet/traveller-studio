@@ -57,6 +57,29 @@
     </div>
 
     <div class="form-card">
+      <div class="sec-label">Orte</div>
+      <div class="grid2">
+        <div class="field"><label>Aktueller Aufenthalt</label>
+          <div class="ort-picker" data-target="aufenthalt_welt_id">
+            <select class="inp ort-ss"><option value="">— Subsektor —</option></select>
+            <select class="inp ort-welt"><option value="">— (unverortet) —</option></select>
+          </div>
+          <input type="hidden" name="aufenthalt_welt_id" id="aufenthalt_welt_id"
+                 value="{{ aufenthalt_welt_id or '' }}">
+        </div>
+        <div class="field"><label>Herkunft (stammt von)</label>
+          <div class="ort-picker" data-target="herkunft_welt_id">
+            <select class="inp ort-ss"><option value="">— Subsektor —</option></select>
+            <select class="inp ort-welt"><option value="">— (keine) —</option></select>
+          </div>
+          <input type="hidden" name="herkunft_welt_id" id="herkunft_welt_id"
+                 value="{{ herkunft_welt_id or '' }}">
+        </div>
+      </div>
+      <p class="hint">Aufenthalt erscheint auf der Hexkarte als „hier ansässig", Herkunft als „stammt von hier".</p>
+    </div>
+
+    <div class="form-card">
       <div class="sec-label">Eigenschaften (2W6)</div>
       <div class="eig-grid">
         {% for kuerzel, label in EIGENSCHAFTEN %}
@@ -83,22 +106,25 @@
       </div>
     </div>
 
-    {% if fraktionen %}
     <div class="form-card">
       <div class="sec-label">Fraktions-Zugehörigkeit</div>
-      {% for fr in fraktionen %}
-      {% set zg = nsc_fraktionen.get(fr.id) %}
-      <div class="assign-row">
-        <span class="ar-name">{{ fr.name }}{% if fr.typ %} <span class="hint">· {{ fr.typ }}</span>{% endif %}</span>
-        <input class="inp" style="width:130px;min-height:30px" name="rolle_{{ fr.id }}"
-               placeholder="Rolle" value="{{ zg.rolle if zg else '' }}">
-        <label><input type="checkbox" name="fr_{{ fr.id }}" {{ "checked" if zg }}> Mitglied</label>
-        <label><input type="checkbox" name="geheim_{{ fr.id }}" {{ "checked" if zg and zg.geheim }}> geheim</label>
+      <div class="grid2">
+        <div class="field"><label>Per Ort wählen</label>
+          <div class="ort-picker" id="fr-cascade">
+            <select class="inp fr-ss"><option value="">— Subsektor —</option></select>
+            <select class="inp fr-welt"><option value="">— Welt —</option></select>
+          </div>
+          <div id="fr-welt-list" class="fr-welt-list"></div>
+        </div>
+        <div class="field"><label for="fr-search">Suche (alle Fraktionen der Kampagne)</label>
+          <input class="inp" id="fr-search" placeholder="Name tippen …" autocomplete="off">
+          <div id="fr-search-list" class="fr-welt-list"></div>
+        </div>
       </div>
-      {% endfor %}
+      <div class="sec-label" style="margin-top:14px">Zugewiesen</div>
+      <div id="fr-chips" class="fr-chips"></div>
       <p class="hint">„geheim" markiert verdeckte Mitgliedschaft (Doppelagent) — erscheint als rotes Badge in der Detailkarte.</p>
     </div>
-    {% endif %}
 
     <div class="form-card">
       <div class="field"><label for="notizen">Notizen (wächst am Tisch)</label>
@@ -118,4 +144,114 @@
   </form>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const WELT_STRUKTUR = {{ welt_struktur | tojson }};
+const FR_STRUKTUR   = {{ fr_struktur | tojson }};
+const FR_LISTE      = {{ fraktionen | tojson }};
+const PRESELECT     = {{ nsc_fraktionen | tojson }};
+
+const ssLabel = (i, name) => name ? `${String.fromCharCode(65 + i)} · ${name}`
+                                  : String.fromCharCode(65 + i);
+
+// ---------- Orts-Picker (Aufenthalt / Herkunft) ----------
+document.querySelectorAll(".ort-picker[data-target]").forEach(pick => {
+  const hidden = document.getElementById(pick.dataset.target);
+  const ssSel = pick.querySelector(".ort-ss"), wSel = pick.querySelector(".ort-welt");
+  WELT_STRUKTUR.forEach(ss => {
+    const o = document.createElement("option");
+    o.value = ss.ss_index; o.textContent = ssLabel(ss.ss_index, ss.ss_name);
+    ssSel.appendChild(o);
+  });
+  const fuelleWelten = (ssIdx, sel) => {
+    wSel.length = 1;
+    const ss = WELT_STRUKTUR.find(s => String(s.ss_index) === String(ssIdx));
+    if (!ss) return;
+    ss.welten.forEach(w => {
+      const o = document.createElement("option");
+      o.value = w.welt_id; o.textContent = `${w.hex} · ${w.name}`;
+      if (sel && String(sel) === String(w.welt_id)) o.selected = true;
+      wSel.appendChild(o);
+    });
+  };
+  ssSel.addEventListener("change", () => { fuelleWelten(ssSel.value, null); hidden.value = ""; });
+  wSel.addEventListener("change", () => { hidden.value = wSel.value; });
+  // Vorbelegung aus hidden value
+  if (hidden.value) {
+    const cur = Number(hidden.value);
+    const ss = WELT_STRUKTUR.find(s => s.welten.some(w => w.welt_id === cur));
+    if (ss) { ssSel.value = ss.ss_index; fuelleWelten(ss.ss_index, cur); }
+  }
+});
+
+// ---------- Fraktions-Picker ----------
+const chips = document.getElementById("fr-chips");
+const frMeta = {};
+FR_LISTE.forEach(f => frMeta[f.id] = {name: f.name, typ: f.typ});
+
+function addChip(id, rolle = "", geheim = false) {
+  id = Number(id);
+  if (!frMeta[id] || chips.querySelector(`[data-fr="${id}"]`)) return;
+  const m = frMeta[id];
+  const chip = document.createElement("div");
+  chip.className = "fr-chip"; chip.dataset.fr = id;
+  chip.innerHTML =
+    `<input type="hidden" name="fr_${id}" value="on">`
+    + `<span class="fr-chip__name">${m.name}${m.typ ? ` · ${m.typ}` : ""}</span>`
+    + `<input class="inp fr-chip__rolle" name="rolle_${id}" placeholder="Rolle" value="${rolle.replace(/"/g, "&quot;")}">`
+    + `<label class="fr-chip__geheim"><input type="checkbox" name="geheim_${id}" ${geheim ? "checked" : ""}> geheim</label>`
+    + `<button type="button" class="fr-chip__x" title="Entfernen">×</button>`;
+  chip.querySelector(".fr-chip__x").addEventListener("click", () => chip.remove());
+  chips.appendChild(chip);
+}
+
+// Kaskade Subsektor -> Welt -> Fraktions-Buttons
+const frSs = document.querySelector("#fr-cascade .fr-ss");
+const frWelt = document.querySelector("#fr-cascade .fr-welt");
+const frWeltList = document.getElementById("fr-welt-list");
+FR_STRUKTUR.forEach(ss => {
+  const o = document.createElement("option");
+  o.value = ss.ss_index; o.textContent = ssLabel(ss.ss_index, ss.ss_name);
+  frSs.appendChild(o);
+});
+const renderButtons = (fraktionen, ziel) => {
+  ziel.innerHTML = "";
+  fraktionen.forEach(f => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "fr-opt";
+    b.textContent = f.name + (f.typ ? ` · ${f.typ}` : "");
+    b.addEventListener("click", () => addChip(f.id));
+    ziel.appendChild(b);
+  });
+};
+frSs.addEventListener("change", () => {
+  frWelt.length = 1; frWeltList.innerHTML = "";
+  const ss = FR_STRUKTUR.find(s => String(s.ss_index) === String(frSs.value));
+  if (!ss) return;
+  ss.welten.forEach(w => {
+    const o = document.createElement("option");
+    o.value = w.welt_id; o.textContent = `${w.hex} · ${w.name}`;
+    frWelt.appendChild(o);
+  });
+});
+frWelt.addEventListener("change", () => {
+  const ss = FR_STRUKTUR.find(s => String(s.ss_index) === String(frSs.value));
+  const w = ss && ss.welten.find(x => String(x.welt_id) === String(frWelt.value));
+  renderButtons(w ? w.fraktionen : [], frWeltList);
+});
+
+// Suche über alle Kampagnen-Fraktionen
+const search = document.getElementById("fr-search");
+const searchList = document.getElementById("fr-search-list");
+search.addEventListener("input", () => {
+  const q = search.value.trim().toLowerCase();
+  if (!q) { searchList.innerHTML = ""; return; }
+  renderButtons(FR_LISTE.filter(f => f.name.toLowerCase().includes(q)).slice(0, 20), searchList);
+});
+
+// Vorbelegung (Bearbeiten)
+Object.entries(PRESELECT).forEach(([id, zg]) => addChip(id, zg.rolle || "", !!zg.geheim));
+</script>
 {% endblock %}

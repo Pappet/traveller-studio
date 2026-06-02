@@ -19,6 +19,22 @@ def _zufallsseed(n: int = 8) -> str:
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=n))
 
 
+def _opt_welt(v):
+    """Form-Wert -> welt_id (int) oder None."""
+    try:
+        return int(v) if v not in (None, "", "0") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _orte_speichern(db, nsc_id: int, form) -> None:
+    """Herkunft ('stammt_von') aus dem Formular in den verknuepfung-Graph schreiben."""
+    persist.loesche_nsc_orte(db, nsc_id, "stammt_von")
+    herkunft = _opt_welt(form.get("herkunft_welt_id"))
+    if herkunft:
+        persist.setze_nsc_ort(db, nsc_id, herkunft, "stammt_von")
+
+
 # --- Formular <-> NSC-dict ------------------------------------------------
 def _parse_eig(form) -> dict[str, int]:
     eig = {}
@@ -87,12 +103,15 @@ def _zurueck_url(ctx) -> str:
     return url_for("kampagne.dashboard", kampagne_id=ctx["kampagne_id"])
 
 
-def _render(welt_kontext, nsc, *, modus, action, fraktionen, nsc_fraktionen):
+def _render(welt_kontext, nsc, *, modus, action, fraktionen, nsc_fraktionen,
+            fr_struktur, welt_struktur, aufenthalt_welt_id=None, herkunft_welt_id=None):
     return render_template(
         "nsc_form.html",
         modus=modus, action=action, nsc=nsc, kontext=welt_kontext,
         EIGENSCHAFTEN=EIGENSCHAFTEN, ARCHETYPEN=ARCHETYPEN, ROLLEN=ROLLEN,
         fraktionen=fraktionen, nsc_fraktionen=nsc_fraktionen,
+        fr_struktur=fr_struktur, welt_struktur=welt_struktur,
+        aufenthalt_welt_id=aufenthalt_welt_id, herkunft_welt_id=herkunft_welt_id,
         home_url=url_for("main.index"),
         zurueck_url=_zurueck_url(welt_kontext),
     )
@@ -113,9 +132,11 @@ def nsc_neu_kampagne(kampagne_id: int):
 
     if request.method == "POST" and request.form.get("aktion") == "speichern":
         nsc = _nsc_aus_form(request.form)
-        nid = persist.speichere_nsc(db, kampagne_id, None, nsc)
+        aufenthalt = _opt_welt(request.form.get("aufenthalt_welt_id"))
+        nid = persist.speichere_nsc(db, kampagne_id, aufenthalt, nsc)
         persist.aktualisiere_nsc(db, nid, {"status": nsc["status"], "notizen": nsc["notizen"]})
         persist.setze_nsc_fraktionen(db, nid, _fraktionen_aus_form(request.form, fraktionen))
+        _orte_speichern(db, nid, request.form)
         return redirect(url_for("kampagne.dashboard", kampagne_id=kampagne_id))
 
     if request.method == "POST":           # aktion == "generieren"
@@ -129,7 +150,9 @@ def nsc_neu_kampagne(kampagne_id: int):
     nsc["status"] = "lebendig"
     return _render(ctx, nsc, modus="neu",
                    action=url_for("nsc.nsc_neu_kampagne", kampagne_id=kampagne_id),
-                   fraktionen=fraktionen, nsc_fraktionen={})
+                   fraktionen=fraktionen, nsc_fraktionen={},
+                   fr_struktur=persist.fraktionen_struktur(db, kampagne_id),
+                   welt_struktur=persist.welten_struktur(db, kampagne_id))
 
 
 # =====================================================================
@@ -141,13 +164,18 @@ def nsc_neu(welt_id: int):
     ctx = persist.welt_kontext(db, welt_id)
     if not ctx:
         abort(404)
-    fraktionen = persist.sektor_fraktionen(db, ctx["sektor_id"])
+    kampagne_id = ctx["kampagne_id"]
+    fraktionen = persist.liste_fraktionen(db, kampagne_id)
 
     if request.method == "POST" and request.form.get("aktion") == "speichern":
         nsc = _nsc_aus_form(request.form)
-        nid = persist.speichere_nsc(db, ctx["kampagne_id"], welt_id, nsc)
+        aufenthalt = _opt_welt(request.form.get("aufenthalt_welt_id"))
+        if aufenthalt is None:
+            aufenthalt = welt_id
+        nid = persist.speichere_nsc(db, kampagne_id, aufenthalt, nsc)
         persist.aktualisiere_nsc(db, nid, {"status": nsc["status"], "notizen": nsc["notizen"]})
         persist.setze_nsc_fraktionen(db, nid, _fraktionen_aus_form(request.form, fraktionen))
+        _orte_speichern(db, nid, request.form)
         return redirect(url_for("sektor.subsektor_ansicht",
                                 sektor_id=ctx["sektor_id"], ss_index=ctx["ss_index"] or 0))
 
@@ -164,7 +192,10 @@ def nsc_neu(welt_id: int):
 
     return _render(ctx, nsc, modus="neu",
                    action=url_for("nsc.nsc_neu", welt_id=welt_id),
-                   fraktionen=fraktionen, nsc_fraktionen={})
+                   fraktionen=fraktionen, nsc_fraktionen={},
+                   fr_struktur=persist.fraktionen_struktur(db, kampagne_id),
+                   welt_struktur=persist.welten_struktur(db, kampagne_id),
+                   aufenthalt_welt_id=welt_id)
 
 
 # =====================================================================
@@ -178,8 +209,8 @@ def nsc_bearbeiten(nsc_id: int):
         abort(404)
     welt_id = nsc_row["aufenthalt_welt_id"]
     ctx = persist.welt_kontext(db, welt_id) if welt_id else None
-    sektor_id = ctx["sektor_id"] if ctx else None
-    fraktionen = persist.sektor_fraktionen(db, sektor_id) if sektor_id else []
+    kampagne_id = nsc_row["kampagne_id"]
+    fraktionen = persist.liste_fraktionen(db, kampagne_id)
 
     if request.method == "POST":
         felder = {
@@ -188,24 +219,32 @@ def nsc_bearbeiten(nsc_id: int):
             "beschreibung": (request.form.get("beschreibung") or "").strip(),
             "notizen": (request.form.get("notizen") or "").strip(),
             "status": request.form.get("status") if request.form.get("status") in ("lebendig", "tot") else "lebendig",
+            "aufenthalt_welt_id": _opt_welt(request.form.get("aufenthalt_welt_id")),
         }
         persist.aktualisiere_nsc(db, nsc_id, felder)
         persist.setze_nsc_fraktionen(db, nsc_id, _fraktionen_aus_form(request.form, fraktionen))
-        ziel = _zurueck_url(ctx) if ctx else url_for("kampagne.dashboard", kampagne_id=nsc_row["kampagne_id"])
+        _orte_speichern(db, nsc_id, request.form)
+        ziel = _zurueck_url(ctx) if ctx else url_for("kampagne.dashboard", kampagne_id=kampagne_id)
         return redirect(ziel)
 
     # Anzeige-dict aufbereiten
     nsc_row.setdefault("eigenschaften", {})
     nsc_row["profil"] = profil_string(nsc_row["eigenschaften"]) if nsc_row.get("eigenschaften") else ""
     nsc_row.setdefault("archetyp", "")
+    herkunft = next((o["welt_id"] for o in persist.nsc_orte(db, nsc_id)
+                     if o["relation"] == "stammt_von"), None)
     if not ctx:
         # NSC ohne Welt -> Kampagnen-Kontext fuer das Template
         ctx = {"sektor_id": None, "ss_index": 0, "name": "—", "hex": "—",
-               "kampagne_id": nsc_row["kampagne_id"]}
+               "kampagne_id": kampagne_id}
     return _render(ctx, nsc_row, modus="bearbeiten",
                    action=url_for("nsc.nsc_bearbeiten", nsc_id=nsc_id),
                    fraktionen=fraktionen,
-                   nsc_fraktionen=persist.lade_nsc_fraktionen(db, nsc_id))
+                   nsc_fraktionen=persist.lade_nsc_fraktionen(db, nsc_id),
+                   fr_struktur=persist.fraktionen_struktur(db, kampagne_id),
+                   welt_struktur=persist.welten_struktur(db, kampagne_id),
+                   aufenthalt_welt_id=nsc_row["aufenthalt_welt_id"],
+                   herkunft_welt_id=herkunft)
 
 
 @bp.post("/nsc/<int:nsc_id>/loeschen")

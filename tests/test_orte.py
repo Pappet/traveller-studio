@@ -64,6 +64,56 @@ def test_nscs_an_welt_aufenthalt_und_herkunft(app_ctx):
     assert "stammt_von" in rel_b
 
 
+def test_nsc_orte_speichern_via_form(client):
+    app, c = client
+    c.post("/kampagne/neu", data={"name": "K"})
+    with app.app_context():
+        db = dbmod.get_db()
+        kid = db.execute("SELECT id FROM kampagne").fetchone()["id"]
+    c.post("/sektor/generieren", data={"name": "S", "seed": "FORM-SEED",
+                                       "dichte": "dicht", "kampagne_id": str(kid)})
+    with app.app_context():
+        db = dbmod.get_db()
+        welten = db.execute("SELECT id FROM welt ORDER BY id LIMIT 2").fetchall()
+        wa, wb = welten[0]["id"], welten[1]["id"]
+    # NSC standalone anlegen
+    c.post(f"/kampagne/{kid}/nsc/neu", data={"aktion": "speichern", "name": "Wanderer"})
+    with app.app_context():
+        nid = dbmod.get_db().execute("SELECT id FROM nsc").fetchone()["id"]
+    # Orte setzen: Aufenthalt = wa, Herkunft = wb
+    c.post(f"/nsc/{nid}", data={"name": "Wanderer", "status": "lebendig",
+                                "aufenthalt_welt_id": str(wa), "herkunft_welt_id": str(wb)})
+    with app.app_context():
+        db = dbmod.get_db()
+        assert db.execute("SELECT aufenthalt_welt_id FROM nsc WHERE id=?",
+                          (nid,)).fetchone()["aufenthalt_welt_id"] == wa
+        orte = persist.nsc_orte(db, nid)
+    assert {"welt_id": wb, "relation": "stammt_von"} in orte
+
+
+def test_fraktionen_struktur(app_ctx):
+    app = app_ctx
+    kid, wa, wb = _kampagne_mit_sektor(app)
+    db = dbmod.get_db()
+    struktur = persist.fraktionen_struktur(db, kid)
+    assert struktur, "Sektor sollte Fraktionen liefern"
+    # nur Welten mit Fraktionen, jede Fraktion hat id/name
+    for ss in struktur:
+        assert "ss_index" in ss and isinstance(ss["welten"], list)
+        for wlt in ss["welten"]:
+            assert wlt["fraktionen"], "Welt ohne Fraktion darf nicht erscheinen"
+            assert all("id" in f and "name" in f for f in wlt["fraktionen"])
+
+
+def test_welten_struktur(app_ctx):
+    app = app_ctx
+    kid, wa, wb = _kampagne_mit_sektor(app)
+    db = dbmod.get_db()
+    struktur = persist.welten_struktur(db, kid)
+    alle = [wlt["welt_id"] for ss in struktur for wlt in ss["welten"]]
+    assert wa in alle and wb in alle
+
+
 def test_baue_links_gruppiert_nach_ort(app_ctx):
     app = app_ctx
     kid, wa, wb = _kampagne_mit_sektor(app)

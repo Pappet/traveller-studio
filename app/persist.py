@@ -432,6 +432,41 @@ def nsc_orte(db: sqlite3.Connection, nsc_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def fraktionen_struktur(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    """Fraktionen der Kampagne als Kaskade [{ss_index, ss_name, welten:[{welt_id,
+    hex, name, fraktionen:[{id, name, typ}]}]}] — nur Welten mit Fraktionen."""
+    rows = db.execute(
+        "SELECT s.idx AS ss_index, s.name AS ss_name, w.id AS welt_id, w.hex, "
+        "       w.name AS welt_name, fr.id AS fr_id, fr.name AS fr_name, fr.typ AS fr_typ "
+        "FROM fraktion fr JOIN welt w ON fr.heimatwelt_id=w.id "
+        "JOIN subsektor s ON w.subsektor_id=s.id JOIN sektor se ON w.sektor_id=se.id "
+        "WHERE se.kampagne_id=? ORDER BY s.idx, w.hex, fr.name", (kampagne_id,)).fetchall()
+    aus: dict = {}
+    for r in rows:
+        ss = aus.setdefault(r["ss_index"], {"ss_index": r["ss_index"],
+                                            "ss_name": r["ss_name"], "welten": {}})
+        wlt = ss["welten"].setdefault(r["welt_id"], {"welt_id": r["welt_id"], "hex": r["hex"],
+                                                     "name": r["welt_name"], "fraktionen": []})
+        wlt["fraktionen"].append({"id": r["fr_id"], "name": r["fr_name"], "typ": r["fr_typ"]})
+    return [{"ss_index": s["ss_index"], "ss_name": s["ss_name"],
+             "welten": list(s["welten"].values())} for s in aus.values()]
+
+
+def welten_struktur(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    """Alle Welten der Kampagne als Kaskade [{ss_index, ss_name, welten:[{welt_id,
+    hex, name}]}] — fuer den Orts-Picker (Aufenthalt/Herkunft)."""
+    rows = db.execute(
+        "SELECT s.idx AS ss_index, s.name AS ss_name, w.id AS welt_id, w.hex, w.name AS welt_name "
+        "FROM welt w JOIN subsektor s ON w.subsektor_id=s.id JOIN sektor se ON w.sektor_id=se.id "
+        "WHERE se.kampagne_id=? ORDER BY s.idx, w.hex", (kampagne_id,)).fetchall()
+    aus: dict = {}
+    for r in rows:
+        ss = aus.setdefault(r["ss_index"], {"ss_index": r["ss_index"],
+                                            "ss_name": r["ss_name"], "welten": []})
+        ss["welten"].append({"welt_id": r["welt_id"], "hex": r["hex"], "name": r["welt_name"]})
+    return list(aus.values())
+
+
 def nscs_an_welt(db: sqlite3.Connection, welt_id: int) -> list[dict]:
     """NSCs mit Bezug zu Welt W: Aufenthalt (relation='befindet_sich') + Graph-Relationen."""
     out = [{"id": r["id"], "name": r["name"], "rolle": r["rolle"],
