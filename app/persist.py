@@ -31,9 +31,11 @@ _JSON_COLS = ("handelscodes", "basen", "raumhafen_details", "kultur",
 #  Schreiben: ganzen Sektor generieren und speichern
 # =====================================================================
 def speichere_sektor(db: sqlite3.Connection, seed: str, name: str,
-                     dichte: str = "normal", zugehoerigkeit: str = "Im") -> int:
+                     dichte: str = "normal", zugehoerigkeit: str = "Im",
+                     *, kampagne_id: int) -> int:
     cur = db.cursor()
-    cur.execute("INSERT INTO sektor(name, seed) VALUES(?, ?)", (name, seed))
+    cur.execute("INSERT INTO sektor(kampagne_id, name, seed) VALUES(?, ?, ?)",
+                (kampagne_id, name, seed))
     sektor_id = cur.lastrowid
 
     # 16 Subsektoren (A..P)
@@ -58,7 +60,7 @@ def speichere_sektor(db: sqlite3.Connection, seed: str, name: str,
     for ss_index, welten in sektor_welten.items():
         for wlt in welten:
             for fr in erzeuge_fraktionen(wlt, seed):
-                frow = fraktion_zu_row(fr, hex2id[wlt.hex])
+                frow = fraktion_zu_row(fr, hex2id[wlt.hex], kampagne_id)
                 spalten = ", ".join(frow.keys())
                 platzhalter = ", ".join("?" * len(frow))
                 cur.execute(f"INSERT INTO fraktion ({spalten}) VALUES ({platzhalter})",
@@ -97,8 +99,9 @@ def _hydrate(row: sqlite3.Row) -> dict:
     return d
 
 
-def liste_sektoren(db: sqlite3.Connection) -> list[dict]:
-    rows = db.execute("SELECT id, name, seed FROM sektor ORDER BY erstellt_am DESC").fetchall()
+def liste_sektoren(db: sqlite3.Connection, kampagne_id: int) -> list[dict]:
+    rows = db.execute("SELECT id, name, seed FROM sektor WHERE kampagne_id=? "
+                      "ORDER BY erstellt_am DESC", (kampagne_id,)).fetchall()
     out = []
     for s in rows:
         welten = db.execute("SELECT COUNT(*) c FROM welt WHERE sektor_id=?",
@@ -131,7 +134,7 @@ def baue_links(db: sqlite3.Connection, welt_dicts: list[dict]) -> dict:
         eintrag: dict = {}
 
         nscs = db.execute(
-            "SELECT id, name, rolle, status FROM nsc WHERE welt_id=? ORDER BY id", (wid,)).fetchall()
+            "SELECT id, name, rolle, status FROM nsc WHERE aufenthalt_welt_id=? ORDER BY id", (wid,)).fetchall()
         if nscs:
             liste = []
             for n in nscs:
@@ -274,10 +277,11 @@ def loesche_kampagne(db: sqlite3.Connection, kampagne_id: int) -> None:
 
 
 def welt_kontext(db: sqlite3.Connection, welt_id: int) -> dict | None:
-    """Liefert {welt_id, sektor_id, ss_index, hex, name} fuer Redirects/Forms."""
+    """Liefert {welt_id, sektor_id, ss_index, hex, name, kampagne_id} fuer Redirects/Forms."""
     r = db.execute(
-        "SELECT w.id, w.sektor_id, w.hex, w.name, s.idx AS ss_index "
-        "FROM welt w LEFT JOIN subsektor s ON w.subsektor_id=s.id WHERE w.id=?",
+        "SELECT w.id, w.sektor_id, w.hex, w.name, s.idx AS ss_index, se.kampagne_id "
+        "FROM welt w LEFT JOIN subsektor s ON w.subsektor_id=s.id "
+        "JOIN sektor se ON w.sektor_id=se.id WHERE w.id=?",
         (welt_id,)).fetchone()
     return dict(r) if r else None
 
@@ -321,9 +325,10 @@ def _hydrate_nsc(row: sqlite3.Row) -> dict:
     return d
 
 
-def speichere_nsc(db: sqlite3.Connection, welt_id: int | None, nsc: dict) -> int:
+def speichere_nsc(db: sqlite3.Connection, kampagne_id: int,
+                  aufenthalt_welt_id: int | None, nsc: dict) -> int:
     """Schreibt ein NSC-dict (aus erzeuge_nsc oder Formular) in die nsc-Tabelle."""
-    return _insert(db, "nsc", nsc_zu_row(nsc, welt_id))
+    return _insert(db, "nsc", nsc_zu_row(nsc, kampagne_id, aufenthalt_welt_id))
 
 
 def lade_nsc(db: sqlite3.Connection, nsc_id: int) -> dict | None:
@@ -414,8 +419,10 @@ def aktualisiere_fraktion(db: sqlite3.Connection, fraktion_id: int, felder: dict
     _update(db, "fraktion", fraktion_id, felder, _FRAKTION_EDIT)
 
 
-def speichere_fraktion(db: sqlite3.Connection, heimatwelt_id: int, felder: dict) -> int:
+def speichere_fraktion(db: sqlite3.Connection, kampagne_id: int,
+                       heimatwelt_id: int | None, felder: dict) -> int:
     row = {"name": felder.get("name") or "Unbenannte Fraktion",
+           "kampagne_id": kampagne_id,
            "typ": felder.get("typ"),
            "reichweite": felder.get("reichweite") or "lokal",
            "heimatwelt_id": heimatwelt_id,
