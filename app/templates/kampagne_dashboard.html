@@ -70,24 +70,6 @@
   <div class="empty">Noch keine NSCs</div>
   {% endif %}
 
-  <!-- ============ FRAKTIONEN ============ -->
-  <div class="sec-head">
-    <div class="sec-label">Fraktionen</div>
-    <a class="btn btn--ghost btn--sm" href="{{ url_for('fraktion.fraktion_neu_kampagne', kampagne_id=kampagne.id) }}">+ Fraktion</a>
-  </div>
-  {% if fraktionen %}
-  <div class="list">
-    {% for f in fraktionen %}
-    <a class="list__row" href="{{ url_for('fraktion.fraktion_bearbeiten', fraktion_id=f.id) }}">
-      <span class="list__name">{{ f.name }}</span>
-      <span class="list__meta">{{ f.typ or "—" }}{% if f.heimat %} · {{ f.heimat }}{% endif %} · {{ f.reichweite or "lokal" }}</span>
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty">Noch keine Fraktionen</div>
-  {% endif %}
-
   <!-- ============ AUFTRÄGE ============ -->
   <div class="sec-head">
     <div class="sec-label">Aufträge</div>
@@ -105,6 +87,24 @@
   </div>
   {% else %}
   <div class="empty">Noch keine Aufträge</div>
+  {% endif %}
+
+  <!-- ============ FRAKTIONEN ============ -->
+  <div class="sec-head">
+    <div class="sec-label">Fraktionen</div>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('fraktion.fraktion_neu_kampagne', kampagne_id=kampagne.id) }}">+ Fraktion</a>
+  </div>
+  {% if fraktionen %}
+  <div class="list">
+    {% for f in fraktionen %}
+    <a class="list__row" href="{{ url_for('fraktion.fraktion_bearbeiten', fraktion_id=f.id) }}">
+      <span class="list__name">{{ f.name }}</span>
+      <span class="list__meta">{{ f.typ or "—" }}{% if f.heimat %} · {{ f.heimat }}{% endif %} · {{ f.reichweite or "lokal" }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Noch keine Fraktionen</div>
   {% endif %}
 </div>
 {% endblock %}
